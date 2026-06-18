@@ -1,4 +1,0 @@
-# Normalize line endings. Text files are stored with LF in the repository
-# and checked out with each platform's native line endings, so the LF/CRLF
-# warning and phantom line-ending-only diffs go away.
-* text=auto
