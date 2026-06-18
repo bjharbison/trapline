@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trapline — Entity Network Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<!-- compromise.js via jsDelivr (reliable, fast CDN for npm packages) -->
+<script src="https://cdn.jsdelivr.net/npm/compromise@14.14.4/builds/compromise.min.js"></script>
+<!-- pdf.js — text-based PDF parsing, in-browser (file never leaves the machine); no OCR -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;width:100%;overflow:hidden}
+body{background:#060A0F;font-family:'JetBrains Mono',monospace;color:#C8E0EE}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1E3045;border-radius:2px}
+*{scrollbar-width:thin;scrollbar-color:#1E3045 transparent}
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,.005) 2px,rgba(0,200,255,.005) 4px)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes glow{0%,100%{box-shadow:0 0 14px rgba(0,200,255,.15)}50%{box-shadow:0 0 28px rgba(0,200,255,.35)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+input,textarea,button{font-family:'JetBrains Mono',monospace}
+input::placeholder,textarea::placeholder{color:#2A4A60}
+
+#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#topbar{height:50px;background:#0C1118;border-bottom:1px solid #1A2A38;display:flex;align-items:center;padding:0 18px;gap:14px;flex-shrink:0;z-index:100}
+#main{flex:1;display:flex;overflow:hidden}
+#left{width:306px;flex-shrink:0;background:#0C1118;border-right:1px solid #1A2A38;display:flex;flex-direction:column;overflow:hidden}
+#graph-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+#canvas{flex:1;position:relative;overflow:hidden;background:#060A0F}
+#bottombar{height:46px;background:#0C1118;border-top:1px solid #1A2A38;display:flex;align-items:center;padding:0 14px;gap:12px;flex-shrink:0;position:relative}
+
+.tab-bar{display:flex;border-bottom:1px solid #1A2A38}
+.tab{flex:1;padding:8px 4px;font-size:.56rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-align:center;color:#3A5A72;border-bottom:2px solid transparent;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none}
+.tab.active{color:#00C8FF;border-bottom-color:#00C8FF}
+.badge{display:inline-block;margin-left:3px;border-radius:3px;padding:0 4px;font-size:.52rem}
+
+.inp{background:#101820;border:1px solid #1A2A38;border-radius:7px;padding:8px 11px;font-size:.68rem;color:#C8E0EE;outline:none;width:100%;transition:border-color .15s}
+.inp:focus{border-color:#00C8FF}
+textarea.inp{resize:none;line-height:1.65}
+
+.btn{padding:9px 14px;border-radius:8px;cursor:pointer;font-family:'Oxanium',sans-serif;font-weight:700;letter-spacing:.1em;text-transform:uppercase;transition:all .2s;border:1px solid}
+.btn-primary{background:linear-gradient(135deg,#003A55,#005A80);border-color:#00C8FF;color:#00C8FF;animation:glow 3s ease-in-out infinite}
+.btn-primary:hover{background:linear-gradient(135deg,#004A6A,#0080B0)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;animation:none}
+.btn-sm{padding:5px 10px;border-radius:6px;font-size:.6rem;cursor:pointer;border:1px solid #1A2A38;background:none;color:#4A7090;transition:all .15s;letter-spacing:.06em}
+.btn-sm:hover{border-color:#00C8FF;color:#00C8FF}
+.btn-sm.active{background:rgba(0,200,255,.1);border-color:#00C8FF;color:#00C8FF}
+
+.entity-card{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#101820;border:1px solid #1A2A38;border-radius:7px;margin-bottom:3px;cursor:pointer;transition:all .15s;font-size:.62rem}
+.entity-card:hover,.entity-card.selected{background:rgba(0,200,255,.07);border-color:#00C8FF}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+#detail{position:absolute;right:0;top:0;bottom:0;width:272px;background:#0C1118;border-left:1px solid #1A2A38;padding:14px 13px;overflow-y:auto;z-index:40;animation:slideIn .2s ease}
+.detail-label{font-size:.54rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#3A5A72;margin-bottom:6px}
+.score-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+.score-bar{height:3px;background:#1A2A38;border-radius:2px;overflow:hidden;margin-top:2px;margin-bottom:5px}
+.score-fill{height:100%;border-radius:2px;transition:width .4s ease}
+
+.flag-card{padding:9px 11px;background:rgba(255,107,53,.05);border:1px solid rgba(255,107,53,.2);border-radius:8px;margin-bottom:6px;animation:fadeIn .2s ease}
+.dupe-card{padding:10px 11px;background:#101820;border:1px solid rgba(168,85,247,.25);border-radius:9px;margin-bottom:8px}
+
+#export-menu{position:absolute;bottom:52px;right:0;background:#0C1118;border:1px solid #1A2A38;border-radius:10px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.6);min-width:200px;animation:fadeIn .15s ease;z-index:200}
+.export-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:.66rem;color:#C8E0EE;transition:background .12s;border:none;background:none;width:100%;text-align:left}
+.export-item:hover{background:rgba(0,200,255,.07)}
+
+#zoom-ctrl{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:4px;z-index:30}
+.zoom-btn{width:30px;height:30px;background:#0C1118;border:1px solid #1A2A38;border-radius:7px;cursor:pointer;color:#4A7090;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.zoom-btn:hover{border-color:#00C8FF;color:#00C8FF}
+
+.search-wrap{position:relative;margin-bottom:7px}
+.search-wrap .ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:.65rem;color:#3A5A72;pointer-events:none}
+.search-inp{padding-left:26px!important}
+
+.stat{display:flex;align-items:center;gap:4px;font-size:.59rem;color:#4A7090}
+.stat span{color:#00C8FF;font-weight:700}
+.sep{width:1px;height:18px;background:#1A2A38}
+.logo{font-family:'Oxanium',sans-serif;font-size:1.2rem;font-weight:800;letter-spacing:.12em;color:#00C8FF;text-shadow:0 0 20px rgba(0,200,255,.35)}
+
+.offline-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;background:rgba(0,255,157,.08);border:1px solid rgba(0,255,157,.2);border-radius:5px;font-size:.55rem;font-weight:700;letter-spacing:.1em;color:#00FF9D}
+.llm-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:5px;font-size:.55rem;font-weight:700;letter-spacing:.1em;color:#A855F7}
+.notice{padding:8px 11px;border-radius:7px;font-size:.59rem;line-height:1.7;margin-bottom:8px}
+.notice-info{background:rgba(0,200,255,.06);border:1px solid rgba(0,200,255,.15);color:#7AC8E0}
+.notice-warn{background:rgba(255,107,53,.06);border:1px solid rgba(255,107,53,.2);color:#FF8C5A}
+
+/* LLM CONFIG PANEL */
+#llm-config{background:#060A0F;border:1px solid #1A2A38;border-radius:9px;padding:11px 12px;margin-bottom:10px}
+#llm-config .cfg-row{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+#llm-config .cfg-row:last-child{margin-bottom:0}
+#llm-config .cfg-label{font-size:.54rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3A5A72}
+#llm-config select.inp{padding:6px 10px;cursor:pointer}
+
+/* ENGINE TOGGLE */
+.engine-bar{display:flex;gap:5px;margin-bottom:10px}
+.engine-pill{flex:1;padding:7px 6px;border-radius:7px;cursor:pointer;font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1px solid #1A2A38;background:#101820;color:#4A7090;text-align:center;transition:all .15s}
+.engine-pill.active-local{border-color:#00FF9D;background:rgba(0,255,157,.08);color:#00FF9D}
+.engine-pill.active-llm{border-color:#A855F7;background:rgba(168,85,247,.08);color:#A855F7}
+
+/* PROGRESS BAR for slow LLMs */
+#llm-progress{display:none;margin-bottom:8px}
+#llm-progress-bar{height:3px;background:#1A2A38;border-radius:2px;overflow:hidden}
+#llm-progress-fill{height:100%;background:linear-gradient(90deg,#A855F7,#00C8FF);border-radius:2px;transition:width .3s ease;width:0%}
+#llm-progress-msg{font-size:.56rem;color:#4A7090;margin-top:4px}
+
+:root{--c-person:#00C8FF;--c-org:#00FF9D;--c-place:#FFB830;--c-event:#FF6B35;--c-other:#A855F7}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <div class="logo">⬡ TRAPLINE</div>
+    <div style="font-size:.55rem;color:#3A5A72;letter-spacing:.08em">Hybrid · Local + LLM</div>
+    <div id="mode-badge" class="offline-badge">⬡ LOCAL NLP</div>
+    <div style="width:1px;height:26px;background:#1A2A38"></div>
+    <div style="display:flex;align-items:center;gap:7px">
+      <div id="status-dot" style="width:7px;height:7px;border-radius:50%;background:#00FF9D;animation:pulse 2s ease-in-out infinite"></div>
+      <span id="status-text" style="font-size:.6rem;color:#4A7090;letter-spacing:.1em">READY</span>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+      <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#00C8FF;display:inline-block"></span>person</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#00FF9D;display:inline-block"></span>org</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#FFB830;display:inline-block"></span>place</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#FF6B35;display:inline-block"></span>event</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#A855F7;display:inline-block"></span>other</span>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="left">
+
+      <div style="padding:14px;border-bottom:1px solid #1A2A38">
+        <div style="font-size:.57rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#00C8FF;margin-bottom:8px">
+          <span style="color:#3A5A72">//</span> Engine
+        </div>
+
+        <!-- ENGINE TOGGLE -->
+        <div class="engine-bar">
+          <div class="engine-pill active-local" id="pill-local" onclick="setEngine('local')">⬡ Local NLP</div>
+          <div class="engine-pill" id="pill-llm" onclick="setEngine('llm')">◈ LLM</div>
+        </div>
+
+        <!-- LOCAL NLP INFO -->
+        <div id="local-section">
+          <div class="notice notice-info">
+            <strong>compromise.js</strong> — rule-based NLP, fully offline, no key needed. Fast. Works on any hardware.
+          </div>
+        </div>
+
+        <!-- LLM CONFIG -->
+        <div id="llm-section" style="display:none">
+          <div id="llm-config">
+            <div class="cfg-row">
+              <div class="cfg-label">Endpoint URL</div>
+              <input type="text" id="llm-url" class="inp" value="http://localhost:11434/v1/chat/completions"
+                placeholder="http://localhost:11434/v1/chat/completions" style="font-size:.63rem" />
+            </div>
+            <div class="cfg-row">
+              <div class="cfg-label">Model name</div>
+              <input type="text" id="llm-model" class="inp" value="qwen2.5:3b"
+                placeholder="qwen2.5:3b · llama3.2:3b · gemma3:4b" style="font-size:.63rem" />
+              <select id="llm-model-select" class="inp" onchange="pickModel(this.value)"
+                style="font-size:.63rem;margin-top:5px;display:none"></select>
+            </div>
+            <div class="cfg-row">
+              <div class="cfg-label">API Key <span style="color:#2A4060;font-weight:400">(optional — leave blank for Ollama)</span></div>
+              <input type="password" id="llm-key" class="inp" placeholder="sk-… or blank for local"
+                style="font-size:.63rem" />
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button class="btn-sm" onclick="testConnection()" id="btn-test" style="flex:1">⚡ Test Connection</button>
+              <button class="btn-sm" onclick="fetchModels()" id="btn-models" style="flex:1">📋 List Models</button>
+            </div>
+            <div id="conn-status" style="font-size:.57rem;color:#3A5A72;margin-top:5px;min-height:14px"></div>
+          </div>
+          <div class="notice notice-warn" style="font-size:.56rem">
+            Small models (≤4B) are slow on CPU — expect 30–120s per analysis. Results are lower quality than a frontier model but fully private.
+          </div>
+        </div>
+
+        <!-- TEXT INPUT (shared) -->
+        <textarea class="inp" id="text-input" rows="6" placeholder="Paste article, report, intelligence product, or any text…&#10;&#10;Works best with 200–2000 words of continuous prose."></textarea>
+
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+          <button class="btn-sm" id="btn-upload" onclick="document.getElementById('file-input').click()" style="flex:0 0 auto">📎 Upload .txt / .csv / .pdf</button>
+          <input type="file" id="file-input" accept=".txt,.csv,.pdf,text/plain,text/csv,application/pdf" style="display:none" onchange="handleFile(this.files[0])" />
+          <span id="file-status" style="font-size:.57rem;color:#3A5A72;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;margin-bottom:8px">
+          <div style="flex:1">
+            <div style="font-size:.54rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3A5A72;margin-bottom:4px">Min mentions</div>
+            <input type="number" id="min-mentions" class="inp" value="1" min="1" max="5" style="text-align:center" />
+          </div>
+          <div style="flex:1">
+            <div style="font-size:.54rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3A5A72;margin-bottom:4px">Max entities</div>
+            <input type="number" id="max-entities" class="inp" value="25" min="5" max="40" style="text-align:center" />
+          </div>
+        </div>
+
+        <!-- LLM PROGRESS BAR -->
+        <div id="llm-progress">
+          <div id="llm-progress-bar"><div id="llm-progress-fill"></div></div>
+          <div id="llm-progress-msg">Waiting for model…</div>
+        </div>
+
+        <div id="step-status" style="font-size:.57rem;color:#3A5A72;margin-bottom:6px;min-height:16px"></div>
+
+        <button class="btn btn-primary" id="btn-analyse" onclick="runAnalysis()" style="width:100%;font-size:.72rem">
+          ▶ Analyse
+        </button>
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab active" onclick="setTab('entities')" id="tab-entities">Entities</button>
+        <button class="tab" onclick="setTab('flags')" id="tab-flags">Flags <span id="flag-badge" class="badge" style="background:rgba(255,107,53,.2);color:#FF6B35;display:none"></span></button>
+        <button class="tab" onclick="setTab('dupes')" id="tab-dupes">Dupes <span id="dupe-badge" class="badge" style="background:rgba(168,85,247,.2);color:#A855F7;display:none"></span></button>
+      </div>
+
+      <div id="panel-entities" style="flex:1;overflow-y:auto;padding:8px 12px 14px;display:flex;flex-direction:column">
+        <div id="entity-empty" style="font-size:.6rem;color:#3A5A72;text-align:center;padding-top:28px;line-height:1.9">Paste text and click Analyse<br>to extract entities offline</div>
+        <div id="entity-controls" style="display:none">
+          <div class="search-wrap">
+            <span class="ico">🔍</span>
+            <input type="text" class="inp search-inp" id="search-input" placeholder="Search entities…" oninput="filterEntities()" />
+          </div>
+          <div style="display:flex;gap:3px;margin-bottom:5px;flex-wrap:wrap" id="type-filters"></div>
+          <div id="entity-count" style="font-size:.54rem;color:#3A5A72;margin-bottom:6px"></div>
+        </div>
+        <div id="entity-list"></div>
+      </div>
+
+      <div id="panel-flags" style="flex:1;overflow-y:auto;padding:10px 12px;display:none">
+        <div id="flag-empty" style="font-size:.6rem;color:#3A5A72;text-align:center;padding-top:28px;line-height:1.9">No flags detected</div>
+        <div id="flag-list"></div>
+      </div>
+
+      <div id="panel-dupes" style="flex:1;overflow-y:auto;padding:10px 12px;display:none">
+        <div id="dupe-empty" style="font-size:.6rem;color:#3A5A72;text-align:center;padding-top:28px;line-height:1.9">No duplicates detected</div>
+        <div id="dupe-list"></div>
+      </div>
+    </div>
+
+    <div id="graph-area">
+      <div id="canvas">
+        <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(0,200,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,.018) 1px,transparent 1px);background-size:40px 40px;pointer-events:none"></div>
+
+        <div id="empty-state" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;pointer-events:none">
+          <div style="font-size:2.8rem;opacity:.09">⬡</div>
+          <div style="font-family:'Oxanium',sans-serif;font-size:1.1rem;font-weight:700;color:#3A5A72;letter-spacing:.12em">AWAITING INPUT</div>
+          <div style="font-size:.63rem;color:#3A5A72;text-align:center;line-height:1.8">Local NLP (compromise.js) or any LLM<br>Ollama · LM Studio · llama.cpp · OpenAI<br>Double-click nodes to pin</div>
+        </div>
+
+        <svg id="graph-svg" style="width:100%;height:100%"></svg>
+        <div id="detail" style="display:none"></div>
+
+        <div id="zoom-ctrl" style="display:none">
+          <div class="zoom-btn" onclick="zoomIn()">＋</div>
+          <div class="zoom-btn" onclick="zoomOut()">－</div>
+          <div class="zoom-btn" onclick="zoomFit()" style="font-size:.6rem">FIT</div>
+          <div class="zoom-btn" onclick="zoomReset()" style="font-size:.65rem">⌂</div>
+        </div>
+      </div>
+
+      <div id="bottombar">
+        <div class="stat">Nodes <span id="stat-nodes">0</span></div>
+        <div class="sep"></div>
+        <div class="stat">Edges <span id="stat-edges">0</span></div>
+        <div class="sep"></div>
+        <div class="stat">Density <span id="stat-density">—</span></div>
+        <div class="sep"></div>
+        <div class="stat">Top bridge <span id="stat-bridge" style="color:#FF6B35">—</span></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <div style="position:relative">
+            <div id="export-menu" style="display:none">
+              <div style="padding:7px 14px 4px;font-size:.54rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3A5A72">Export As</div>
+              <button class="export-item" onclick="doExport('csv')"><span>📊</span><div><div style="font-weight:600;font-size:.65rem">CSV (nodes + edges)</div><div style="font-size:.56rem;color:#3A5A72">Two files with SNA metrics</div></div></button>
+              <button class="export-item" onclick="doExport('md')"><span>📝</span><div><div style="font-weight:600;font-size:.65rem">Markdown</div><div style="font-size:.56rem;color:#3A5A72">Obsidian-ready .md</div></div></button>
+              <button class="export-item" onclick="doExport('json')"><span>⬡</span><div><div style="font-weight:600;font-size:.65rem">JSON</div><div style="font-size:.56rem;color:#3A5A72">Raw graph data</div></div></button>
+            </div>
+            <button class="btn-sm" id="btn-export" onclick="toggleExport()" style="display:none">⬇ Export ▴</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:56px;left:50%;transform:translateX(-50%);background:#0C1118;border:1px solid #00FF9D;border-radius:8px;padding:9px 20px;font-size:.68rem;color:#00FF9D;box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:9000;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONSTANTS + STATE
+// ══════════════════════════════════════════════════════
+const TYPE_COLORS = {person:'#00C8FF',org:'#00FF9D',place:'#FFB830',event:'#FF6B35',other:'#A855F7'};
+const TYPE_ICONS  = {person:'●',org:'■',place:'◆',event:'▲',other:'✦'};
+const CONF_COLORS = {high:'#00FF9D',medium:'#FFB830',low:'#FF6B35'};
+
+let state = {
+  analysis: null, sna: null, flags: [], dupes: [],
+  selectedNode: null, pinnedNodes: {},
+  tab: 'entities', search: '', filterType: 'all',
+  showExport: false,
+  engine: 'local',
+};
+let d3sim=null, d3zoom=null, d3svg=null, d3g=null;
+let toastTimer=null;
+
+// ══════════════════════════════════════════════════════
+//  ENGINE TOGGLE
+// ══════════════════════════════════════════════════════
+function setEngine(e) {
+  state.engine = e;
+  document.getElementById('pill-local').className = 'engine-pill' + (e==='local'?' active-local':'');
+  document.getElementById('pill-llm').className   = 'engine-pill' + (e==='llm'?' active-llm':'');
+  document.getElementById('local-section').style.display = e==='local' ? 'block' : 'none';
+  document.getElementById('llm-section').style.display   = e==='llm'   ? 'block' : 'none';
+  const badge = document.getElementById('mode-badge');
+  if (e==='local') { badge.className='offline-badge'; badge.textContent='⬡ LOCAL NLP'; }
+  else             { badge.className='llm-badge';     badge.textContent='◈ LLM'; }
+  try { localStorage.setItem('trapline_engine', e); } catch {}
+}
+
+// ══════════════════════════════════════════════════════
+//  LLM CONNECTION UTILS
+// ══════════════════════════════════════════════════════
+async function testConnection() {
+  const url=document.getElementById('llm-url').value.trim();
+  const model=document.getElementById('llm-model').value.trim();
+  const key=document.getElementById('llm-key').value.trim();
+  const btn=document.getElementById('btn-test');
+  const status=document.getElementById('conn-status');
+  btn.textContent='⏳ Testing…'; btn.disabled=true;
+  status.style.color='#4A7090'; status.textContent='Connecting…';
+  try {
+    const headers={'Content-Type':'application/json'};
+    if(key) headers['Authorization']=`Bearer ${key}`;
+    const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model,max_tokens:5,messages:[{role:'user',content:'Reply with the single word: OK'}]})});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d=await r.json();
+    const reply=d.choices?.[0]?.message?.content||d.content?.[0]?.text||'?';
+    status.style.color='#00FF9D';
+    status.textContent=`✓ Connected · replied: "${reply.trim().slice(0,40)}"`;
+    saveSettings();
+  } catch(e) {
+    status.style.color='#FF6B35';
+    status.textContent=`✗ ${e.message}`;
+  }
+  btn.textContent='⚡ Test Connection'; btn.disabled=false;
+}
+
+async function fetchModels() {
+  const url=document.getElementById('llm-url').value.trim();
+  const key=document.getElementById('llm-key').value.trim();
+  const status=document.getElementById('conn-status');
+  const base=url.replace(/\/v1\/chat\/completions.*$/,'');
+  try {
+    const headers={};
+    if(key) headers['Authorization']=`Bearer ${key}`;
+    const r=await fetch(base+'/v1/models',{headers});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d=await r.json();
+    const models=(d.data||d.models||[]).map(m=>m.id||m.name).filter(Boolean);
+    const sel=document.getElementById('llm-model-select');
+    const cur=document.getElementById('llm-model').value.trim();
+    sel.innerHTML='';
+    if(models.length){
+      const ph=document.createElement('option');
+      ph.value=''; ph.textContent='— select a model —';
+      sel.appendChild(ph);
+      models.forEach(m=>{
+        const o=document.createElement('option');
+        o.value=m; o.textContent=m;          // textContent, never innerHTML — names from the endpoint are untrusted
+        if(m===cur) o.selected=true;
+        sel.appendChild(o);
+      });
+      sel.style.display='block';
+      status.style.color='#00C8FF';
+      status.textContent=`${models.length} model${models.length>1?'s':''} found — pick one from the dropdown`;
+    } else {
+      sel.style.display='none';
+      status.style.color='#00C8FF';
+      status.textContent='No models found';
+    }
+  } catch(e) {
+    status.style.color='#FF6B35'; status.textContent=`✗ ${e.message}`;
+  }
+}
+
+function pickModel(name){
+  if(!name) return;                          // ignore the placeholder row
+  document.getElementById('llm-model').value=name;
+  saveSettings();
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem('trapline_llm_url',   document.getElementById('llm-url').value);
+    localStorage.setItem('trapline_llm_model', document.getElementById('llm-model').value);
+  } catch {}
+}
+
+function loadSettings() {
+  try {
+    const e=localStorage.getItem('trapline_engine'); if(e) setEngine(e);
+    const u=localStorage.getItem('trapline_llm_url'); if(u) document.getElementById('llm-url').value=u;
+    const m=localStorage.getItem('trapline_llm_model'); if(m) document.getElementById('llm-model').value=m;
+  } catch {}
+}
+
+// Max characters sent to the LLM in one shot. Small local models degrade on long
+// input; runAnalysis()'s warning and this slice share this constant so they can't drift.
+const LLM_CHAR_CAP = 5000;
+
+// ══════════════════════════════════════════════════════
+//  LLM PROMPT — tuned for small models
+//  Explicit, short, JSON-only, repeated instructions
+// ══════════════════════════════════════════════════════
+function buildLLMPrompt(text, maxEntities) {
+  return `You are a precise JSON extraction engine. Output ONLY a JSON object. No markdown. No explanation. No code fences. Start with { and end with }.
+
+Extract named entities and relationships from this text:
+
+${text.slice(0, LLM_CHAR_CAP)}
+
+JSON format (output NOTHING else):
+{"title":"short title","summary":"one sentence","nodes":[{"id":"slug_id","name":"Full Name","type":"person","description":"brief role","mentions":2,"confidence":"high"}],"links":[{"source":"node_id","target":"node_id","relationship":"verb label","strength":2,"confidence":"high"}]}
+
+Rules (follow exactly):
+- Extract up to ${maxEntities} nodes
+- type: person | org | place | event | other
+- confidence: high | medium | low
+- strength: 1 | 2 | 3
+- id: lowercase, underscores only, no spaces
+- Every link source/target must be an existing node id
+- Output JSON only. No text before or after.`;
+}
+
+// ══════════════════════════════════════════════════════
+//  LLM API CALL
+// ══════════════════════════════════════════════════════
+async function callLLM(text, maxEntities) {
+  const url   = document.getElementById('llm-url').value.trim();
+  const model = document.getElementById('llm-model').value.trim();
+  const key   = document.getElementById('llm-key').value.trim();
+  if (!url)   throw new Error('Enter an endpoint URL in the LLM config');
+  if (!model) throw new Error('Enter a model name in the LLM config');
+
+  const headers = {'Content-Type':'application/json'};
+  if (key) headers['Authorization'] = `Bearer ${key}`;
+
+  // Animated progress — small models take 30–120s
+  const progressEl = document.getElementById('llm-progress');
+  const fillEl     = document.getElementById('llm-progress-fill');
+  const msgEl      = document.getElementById('llm-progress-msg');
+  progressEl.style.display='block'; fillEl.style.width='0%';
+  const msgs=['Sending to model…','Tokenizing…','Thinking…','Extracting entities…',
+    'Mapping relationships…','Still working… (small models are slow)','Almost there…','Waiting for response…'];
+  let pct=0, mi=0;
+  const pInterval = setInterval(()=>{
+    pct=Math.min(pct+(pct<60?2:0.2),91);
+    fillEl.style.width=pct+'%';
+    if(mi<msgs.length-1) mi++;
+    msgEl.textContent=msgs[mi];
+  }, 1800);
+
+  try {
+    const r = await fetch(url, {
+      method:'POST', headers,
+      body: JSON.stringify({
+        model,
+        max_tokens: 3000,
+        temperature: 0.1,
+        messages: [
+          {role:'system', content:'You are a JSON-only extraction engine. Output only valid JSON. No markdown. No explanation.'},
+          {role:'user',   content: buildLLMPrompt(text, maxEntities)}
+        ]
+      })
+    });
+    if (!r.ok) { const b=await r.text().catch(()=>''); throw new Error(`HTTP ${r.status}: ${b.slice(0,150)}`); }
+    const data = await r.json();
+    const raw  = data.choices?.[0]?.message?.content
+              || data.content?.[0]?.text
+              || data.response || '';
+    if (!raw) throw new Error('Empty response from model — try a larger model or shorter text');
+
+    clearInterval(pInterval); fillEl.style.width='100%'; msgEl.textContent='Parsing…';
+    await new Promise(r=>setTimeout(r,350));
+    progressEl.style.display='none';
+    return parseLLMResponse(raw);
+  } catch(e) {
+    clearInterval(pInterval); progressEl.style.display='none';
+    throw e;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  LLM RESPONSE PARSER — handles messy small-model output
+// ══════════════════════════════════════════════════════
+function parseLLMResponse(raw) {
+  let text = raw.trim();
+  // Strip markdown fences
+  text = text.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/g,'').trim();
+  // Find outermost JSON object
+  const s=text.indexOf('{'), e=text.lastIndexOf('}');
+  if(s===-1||e===-1) throw new Error(`Model didn't return JSON. Got: "${text.slice(0,120)}"`);
+  text = text.slice(s,e+1);
+
+  let data;
+  try { data=JSON.parse(text); }
+  catch(err) {
+    // Try to salvage truncated output
+    const trunc = text.replace(/,\s*[^,\}\]]*$/, '') + ']}]}';
+    try { data=JSON.parse(trunc); }
+    catch { throw new Error(`Cannot parse model output: ${err.message}`); }
+  }
+
+  if(!Array.isArray(data.nodes)) data.nodes=[];
+  if(!Array.isArray(data.links)) data.links=[];
+
+  // Sanitize nodes
+  data.nodes = data.nodes.map(n=>({
+    ...n,
+    id: String(n.id||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40) || slugify(String(n.name||'entity')),
+    type: ['person','org','place','event','other'].includes(n.type)?n.type:'other',
+    confidence: ['high','medium','low'].includes(n.confidence)?n.confidence:'medium',
+    mentions: parseInt(n.mentions)||1,
+    description: n.description||'',
+  }));
+
+  const ids=new Set(data.nodes.map(n=>n.id));
+  // Sanitize links
+  data.links = data.links.map(l=>({
+    ...l,
+    source: typeof l.source==='object'?l.source?.id:l.source,
+    target: typeof l.target==='object'?l.target?.id:l.target,
+    strength: [1,2,3].includes(parseInt(l.strength))?parseInt(l.strength):2,
+    confidence: ['high','medium','low'].includes(l.confidence)?l.confidence:'medium',
+  })).filter(l=>ids.has(l.source)&&ids.has(l.target)&&l.source!==l.target);
+
+  // Degree
+  const deg={};
+  data.nodes.forEach(n=>(deg[n.id]=0));
+  data.links.forEach(l=>{deg[l.source]=(deg[l.source]||0)+1;deg[l.target]=(deg[l.target]||0)+1;});
+  data.nodes.forEach(n=>(n.degree=deg[n.id]||0));
+
+  data.id='llm_'+Date.now();
+  data.source='LLM · '+document.getElementById('llm-model').value.trim();
+  if(!data.title) data.title='LLM Analysis';
+  if(!data.summary) data.summary=`Extracted ${data.nodes.length} entities via local LLM.`;
+  return data;
+}
+
+// ══════════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════════
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  const colors = {ok:'#00FF9D', err:'#FF6B35', warn:'#FFB830'};
+  el.style.color = colors[type]||colors.ok;
+  el.style.borderColor = colors[type]||colors.ok;
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.style.opacity='0', 3500);
+}
+function setStatus(s) {
+  const colors={READY:'#00FF9D',ANALYZING:'#00C8FF',ERROR:'#FF6B35'};
+  document.getElementById('status-dot').style.background = colors[s]||'#00FF9D';
+  document.getElementById('status-text').textContent = s;
+}
+function setStep(msg) { document.getElementById('step-status').textContent = msg; }
+function setTab(t) {
+  state.tab=t;
+  ['entities','flags','dupes'].forEach(x=>{
+    document.getElementById(`tab-${x}`).classList.toggle('active',x===t);
+    const p = document.getElementById(`panel-${x}`);
+    p.style.display = x===t ? (x==='entities'?'flex':'block') : 'none';
+  });
+}
+function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40); }
+// Escape any string derived from analyzed text before it touches innerHTML.
+// Analyzed content may be hostile — a crafted entity name must render as text, never execute.
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// CSV cell: double embedded quotes (RFC 4180) and neutralize spreadsheet formula injection (=,+,-,@).
+function csvCell(v) { v=String(v??''); if(/^[=+\-@\t\r]/.test(v)) v="'"+v; return '"'+v.replace(/"/g,'""')+'"'; }
+function dl(content, filename, mime='text/plain') {
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type:mime}));
+  a.download=filename; a.click();
+}
+
+// ══════════════════════════════════════════════════════
+//  CO-REFERENCE RESOLUTION (lightweight, browser JS)
+//  Resolves pronouns → most recent named antecedent
+// ══════════════════════════════════════════════════════
+function resolveCoref(text) {
+  if (typeof nlp === 'undefined') return text;
+  // Tokenize into sentences
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const resolved = [];
+  let lastPerson = null;
+  let lastOrg = null;
+
+  // Pronoun maps
+  const personPronouns = /\b(he|him|his|she|her|hers|they|them|their|theirs)\b/gi;
+  const orgPronouns    = /\b(it|its|they|them|their)\b/gi;
+
+  for (const sent of sentences) {
+    let s = sent;
+
+    // Find named entities in this sentence to update antecedents
+    const doc = nlp(sent);
+    const people = doc.people().out('array');
+    const orgs   = doc.organizations().out('array');
+    if (people.length) lastPerson = people[people.length-1];
+    if (orgs.length)   lastOrg    = orgs[orgs.length-1];
+
+    // Replace person pronouns if we have an antecedent
+    if (lastPerson) {
+      s = s.replace(/\b(He|Him|His|She|Her|Hers)\b/g, lastPerson);
+      s = s.replace(/\b(he|him|his|she|her|hers)\b/g, lastPerson.toLowerCase());
+    }
+    // Replace org pronouns
+    if (lastOrg) {
+      s = s.replace(/\b(It|Its)\b/g, lastOrg);
+      s = s.replace(/\b(it|its)\b/g, lastOrg.toLowerCase());
+    }
+    resolved.push(s);
+  }
+  return resolved.join(' ');
+}
+
+// ══════════════════════════════════════════════════════
+//  RELATIONSHIP EXTRACTION
+//  Finds subject-verb-object patterns near entity pairs
+// ══════════════════════════════════════════════════════
+const RELATION_PATTERNS = [
+  // Explicit relationship verbs
+  {re:/(\w[\w\s]+)\s+(?:founded|co-founded|established|created)\s+(\w[\w\s]+)/gi, rel:'founded'},
+  {re:/(\w[\w\s]+)\s+(?:leads?|led|heads?|headed|directs?|directed|runs?|ran|manages?|managed)\s+(\w[\w\s]+)/gi, rel:'leads'},
+  {re:/(\w[\w\s]+)\s+(?:works?\s+for|worked\s+for|employed\s+by|is\s+an?\s+\w+\s+(?:at|of))\s+(\w[\w\s]+)/gi, rel:'works for'},
+  {re:/(\w[\w\s]+)\s+(?:joined|left|resigned\s+from|quit)\s+(\w[\w\s]+)/gi, rel:'member of'},
+  {re:/(\w[\w\s]+)\s+(?:acquired|bought|purchased|merged\s+with)\s+(\w[\w\s]+)/gi, rel:'acquired'},
+  {re:/(\w[\w\s]+)\s+(?:partnered?\s+with|collaborated?\s+with|allied?\s+with)\s+(\w[\w\s]+)/gi, rel:'partnered with'},
+  {re:/(\w[\w\s]+)\s+(?:attacked|bombed|invaded|targeted)\s+(\w[\w\s]+)/gi, rel:'attacked'},
+  {re:/(\w[\w\s]+)\s+(?:met\s+with|visited|traveled\s+to)\s+(\w[\w\s]+)/gi, rel:'met with'},
+  {re:/(\w[\w\s]+)\s+(?:appointed|named|elected|selected)\s+(\w[\w\s]+)/gi, rel:'appointed'},
+  {re:/(\w[\w\s]+)\s+(?:accused|charged|indicted|arrested)\s+(\w[\w\s]+)/gi, rel:'accused'},
+  {re:/(\w[\w\s]+)\s+(?:sued|litigated\s+against)\s+(\w[\w\s]+)/gi, rel:'sued'},
+  {re:/(\w[\w\s]+),\s+(?:CEO|president|director|head|chief|founder|chairman|minister|secretary)\s+of\s+(\w[\w\s]+)/gi, rel:'leads'},
+  {re:/(\w[\w\s]+)\s+(?:based\s+in|headquartered\s+in|located\s+in|operates?\s+in)\s+(\w[\w\s]+)/gi, rel:'located in'},
+  {re:/(\w[\w\s]+)\s+(?:signed|agreed|deal|treaty|accord)\s+with\s+(\w[\w\s]+)/gi, rel:'agreement with'},
+];
+
+function extractRelationships(text, entityMap) {
+  const links = [];
+  const seen  = new Set();
+  const entityNames = Object.keys(entityMap);
+
+  for (const pat of RELATION_PATTERNS) {
+    let m;
+    const re = new RegExp(pat.re.source, 'gi');
+    while ((m = re.exec(text)) !== null) {
+      const s = m[1].trim();
+      const t = m[2].trim();
+      // Match to known entities (fuzzy)
+      const sId = findEntityId(s, entityNames, entityMap);
+      const tId = findEntityId(t, entityNames, entityMap);
+      if (sId && tId && sId !== tId) {
+        const key = [sId,tId].sort().join('|') + '|' + pat.rel;
+        if (!seen.has(key)) {
+          seen.add(key);
+          links.push({source:sId, target:tId, relationship:pat.rel, strength:2, confidence:'medium'});
+        }
+      }
+    }
+  }
+
+  // Co-occurrence fallback: entities mentioned in same sentence → weak link
+  const sentences = text.split(/[.!?]+/);
+  for (const sent of sentences) {
+    const present = entityNames.filter(name => {
+      const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i');
+      return re.test(sent);
+    }).map(name => entityMap[name]).filter(Boolean);
+
+    for (let i=0;i<present.length;i++) {
+      for (let j=i+1;j<present.length;j++) {
+        const key = [present[i],present[j]].sort().join('|') + '|co-occurs';
+        if (!seen.has(key)) {
+          seen.add(key);
+          links.push({source:present[i], target:present[j], relationship:'co-occurs', strength:1, confidence:'low'});
+        }
+      }
+    }
+  }
+  return links;
+}
+
+function findEntityId(fragment, names, entityMap) {
+  fragment = fragment.trim().toLowerCase();
+  // Exact match
+  for (const name of names) {
+    if (name.toLowerCase() === fragment) return entityMap[name];
+  }
+  // Partial match (fragment appears in entity name or vice versa)
+  for (const name of names) {
+    const n = name.toLowerCase();
+    if (n.includes(fragment) || fragment.includes(n)) return entityMap[name];
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════════════
+//  MAIN EXTRACTION ENGINE
+// ══════════════════════════════════════════════════════
+function extractEntities(rawText) {
+  setStep('◉ Resolving co-references…');
+
+  // Step 1: Co-reference resolution
+  const resolvedText = resolveCoref(rawText);
+
+  setStep('◉ Extracting named entities…');
+
+  // Step 2: NLP extraction with compromise.js
+  const doc = nlp(resolvedText);
+
+  // Count mentions of each entity type
+  const counts = {};
+  const typeMap = {};
+
+  function addEntity(name, type) {
+    name = name.trim().replace(/\s+/g,' ');
+    if (name.length < 2 || name.length > 60) return;
+    // Skip pure stopwords
+    if (/^(the|a|an|of|in|on|at|by|for|with|this|that|these|those|it|its)$/i.test(name)) return;
+    counts[name] = (counts[name]||0)+1;
+    if (!typeMap[name]) typeMap[name] = type;
+  }
+
+  // People
+  doc.people().out('array').forEach(p => addEntity(p, 'person'));
+
+  // Organizations
+  doc.organizations().out('array').forEach(o => addEntity(o, 'org'));
+
+  // Places
+  doc.places().out('array').forEach(p => addEntity(p, 'place'));
+
+  // Dates/events — use regex (avoids compromise-numbers plugin dependency)
+  const datePatterns = [
+    /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,\s*\d{4})?\b/g,
+    /\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?\b/g,
+    /\b(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2}(?:,\s*\d{4})?\b/g,
+  ];
+  for (const pat of datePatterns) {
+    let dm;
+    while ((dm = pat.exec(resolvedText)) !== null) {
+      addEntity(dm[0].trim(), 'event');
+    }
+  }
+
+  // Topics — noun phrases not caught above (tagged as "other")
+  doc.topics().out('array').forEach(t => addEntity(t, 'other'));
+
+  // Also catch acronyms and capitalized phrases missed by compromise
+  const capsPattern = /\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})\b/g;
+  let m;
+  while ((m = capsPattern.exec(resolvedText)) !== null) {
+    const w = m[1];
+    if (!counts[w] && w.length > 3 && !/^(The|A|An|In|On|At|By|For|With|This|That|He|She|It|They|We|I|But|And|Or)$/.test(w)) {
+      addEntity(w, 'other');
+    }
+  }
+
+  setStep('◉ Filtering and ranking…');
+
+  const minMentions = parseInt(document.getElementById('min-mentions').value)||1;
+  const maxEntities = parseInt(document.getElementById('max-entities').value)||30;
+
+  // Filter by mention count and build node list
+  const entityMap = {}; // name → id
+  const nodes = Object.entries(counts)
+    .filter(([,c]) => c >= minMentions)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0, maxEntities)
+    .map(([name, mentions]) => {
+      const id = slugify(name) || `entity_${Object.keys(entityMap).length}`;
+      entityMap[name] = id;
+      return {
+        id,
+        name,
+        type: typeMap[name]||'other',
+        mentions,
+        description: `Mentioned ${mentions} time${mentions!==1?'s':''} in the source text.`,
+        confidence: mentions >= 3 ? 'high' : mentions === 2 ? 'medium' : 'low',
+        degree: 0,
+      };
+    });
+
+  setStep('◉ Extracting relationships…');
+
+  // Step 3: Relationship extraction
+  const allLinks = extractRelationships(resolvedText, entityMap);
+
+  // Deduplicate: if same pair has both a specific rel and co-occurs, keep specific
+  const pairBest = {};
+  for (const l of allLinks) {
+    const key = [l.source,l.target].sort().join('|');
+    if (!pairBest[key] || (pairBest[key].strength < l.strength)) {
+      pairBest[key] = l;
+    }
+  }
+  const links = Object.values(pairBest);
+
+  // Recompute degree
+  const deg = {};
+  nodes.forEach(n=>(deg[n.id]=0));
+  links.forEach(l=>{deg[l.source]=(deg[l.source]||0)+1;deg[l.target]=(deg[l.target]||0)+1;});
+  nodes.forEach(n=>(n.degree=deg[n.id]||0));
+
+  // Derive a title from the most-mentioned entities
+  const top3 = [...nodes].sort((a,b)=>b.mentions-a.mentions).slice(0,3).map(n=>n.name).join(', ');
+  const wordCount = rawText.split(/\s+/).length;
+
+  return {
+    id: 'local_' + Date.now(),
+    title: `Network: ${top3}`,
+    summary: `Offline extraction found ${nodes.length} entities and ${links.length} relationships across ${wordCount} words of source text.`,
+    source: 'Local analysis',
+    nodes,
+    links,
+  };
+}
+
+// ══════════════════════════════════════════════════════
+//  SNA (pure JS — same as v2)
+// ══════════════════════════════════════════════════════
+function computeSNA(nodes, links) {
+  const n = nodes.length;
+  if (!n) return {};
+  const adj = {};
+  nodes.forEach(nd=>{adj[nd.id]=new Set();});
+  links.forEach(l=>{
+    const s=typeof l.source==='object'?l.source.id:l.source;
+    const t=typeof l.target==='object'?l.target.id:l.target;
+    if(adj[s]&&adj[t]){adj[s].add(t);adj[t].add(s);}
+  });
+  const maxDeg = Math.max(1,n-1);
+  const dc={},bc={},cc={},eig={},pr={},cl={};
+  nodes.forEach(nd=>{dc[nd.id]=(adj[nd.id]?.size||0)/maxDeg;});
+
+  // Betweenness (Brandes)
+  nodes.forEach(nd=>{bc[nd.id]=0;});
+  nodes.forEach(src=>{
+    const stack=[],pred={},sigma={},dist={},queue=[src.id];
+    nodes.forEach(nd=>{pred[nd.id]=[];sigma[nd.id]=0;dist[nd.id]=-1;});
+    sigma[src.id]=1;dist[src.id]=0;
+    while(queue.length){
+      const v=queue.shift();stack.push(v);
+      adj[v]?.forEach(w=>{
+        if(dist[w]<0){queue.push(w);dist[w]=dist[v]+1;}
+        if(dist[w]===dist[v]+1){sigma[w]+=sigma[v];pred[w].push(v);}
+      });
+    }
+    const delta={};nodes.forEach(nd=>{delta[nd.id]=0;});
+    while(stack.length){
+      const w=stack.pop();
+      pred[w].forEach(v=>{delta[v]+=(sigma[v]/sigma[w])*(1+delta[w]);});
+      if(w!==src.id)bc[w]+=delta[w];
+    }
+  });
+  const normB=n>2?((n-1)*(n-2)):1;
+  nodes.forEach(nd=>{bc[nd.id]/=normB;});
+
+  // Closeness
+  nodes.forEach(src=>{
+    const dist={},queue=[src.id];
+    nodes.forEach(nd=>{dist[nd.id]=Infinity;});dist[src.id]=0;
+    while(queue.length){const v=queue.shift();adj[v]?.forEach(w=>{if(dist[w]===Infinity){dist[w]=dist[v]+1;queue.push(w);}});}
+    const sum=Object.values(dist).filter(d=>d!==Infinity).reduce((a,b)=>a+b,0);
+    const reach=Object.values(dist).filter(d=>d!==Infinity).length-1;
+    cc[src.id]=reach>0?(reach/sum):0;
+  });
+
+  // Eigenvector
+  nodes.forEach(nd=>{eig[nd.id]=1;});
+  for(let i=0;i<50;i++){
+    const next={};
+    nodes.forEach(nd=>{next[nd.id]=0;adj[nd.id]?.forEach(nb=>{next[nd.id]+=eig[nb];});});
+    const norm=Math.sqrt(Object.values(next).reduce((a,b)=>a+b*b,0))||1;
+    nodes.forEach(nd=>{eig[nd.id]=next[nd.id]/norm;});
+  }
+  const maxEig=Math.max(...Object.values(eig),0.001);
+  nodes.forEach(nd=>{eig[nd.id]/=maxEig;});
+
+  // PageRank
+  nodes.forEach(nd=>{pr[nd.id]=1/n;});
+  for(let i=0;i<30;i++){
+    const next={};nodes.forEach(nd=>{next[nd.id]=(1-0.85)/n;});
+    nodes.forEach(nd=>{const out=adj[nd.id]?.size||1;adj[nd.id]?.forEach(nb=>{next[nb]+=0.85*pr[nd.id]/out;});});
+    nodes.forEach(nd=>{pr[nd.id]=next[nd.id];});
+  }
+  const maxPR=Math.max(...Object.values(pr),0.001);
+  nodes.forEach(nd=>{pr[nd.id]/=maxPR;});
+
+  // Clustering
+  nodes.forEach(nd=>{
+    const nbrs=[...(adj[nd.id]||[])];const k=nbrs.length;
+    if(k<2){cl[nd.id]=0;return;}
+    let tri=0;
+    for(let i=0;i<k;i++)for(let j=i+1;j<k;j++)if(adj[nbrs[i]]?.has(nbrs[j]))tri++;
+    cl[nd.id]=(2*tri)/(k*(k-1));
+  });
+
+  const metrics={};
+  nodes.forEach(nd=>{metrics[nd.id]={
+    degree_centrality: +dc[nd.id].toFixed(4),
+    betweenness:       +bc[nd.id].toFixed(4),
+    closeness:         +cc[nd.id].toFixed(4),
+    eigenvector:       +eig[nd.id].toFixed(4),
+    pagerank:          +pr[nd.id].toFixed(4),
+    clustering:        +cl[nd.id].toFixed(4),
+  };});
+
+  const density = n>1 ? links.length/(n*(n-1)) : 0;
+  return {
+    node_metrics: metrics,
+    graph_stats: {nodes:n, edges:links.length, density:+density.toFixed(4)},
+  };
+}
+
+// ══════════════════════════════════════════════════════
+//  FLAGS
+// ══════════════════════════════════════════════════════
+function detectFlags(nodes, links, sna) {
+  const flags=[], metrics=sna.node_metrics||{};
+  if(!nodes.length) return flags;
+  const sorted=[...nodes].sort((a,b)=>(metrics[b.id]?.betweenness||0)-(metrics[a.id]?.betweenness||0));
+  const top=sorted[0];
+  if(top&&(metrics[top.id]?.betweenness||0)>0.12) flags.push({type:'broker',icon:'⚠',color:'#FFB830',node_id:top.id,title:'Key Broker',desc:`${top.name} bridges ${((metrics[top.id].betweenness)*100).toFixed(0)}% of shortest paths.`});
+  const deg={};links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;deg[s]=(deg[s]||0)+1;deg[t]=(deg[t]||0)+1;});
+  const isolated=nodes.filter(n=>!deg[n.id]);
+  if(isolated.length>=3) flags.push({type:'isolated',icon:'◎',color:'#A855F7',node_id:null,title:'Isolated Entities',desc:`${isolated.length} entities have no connections — extraction may have missed relationships.`});
+  const lowConf=nodes.filter(n=>n.confidence==='low');
+  if(lowConf.length>=3) flags.push({type:'confidence',icon:'⬡',color:'#FF6B35',node_id:null,title:'Low-Confidence Entities',desc:`${lowConf.length} entities appear only once. Single-mention entities may be noise.`});
+  const coOccOnly = links.filter(l=>l.relationship==='co-occurs').length;
+  const specific   = links.filter(l=>l.relationship!=='co-occurs').length;
+  if(coOccOnly > specific*2 && coOccOnly > 5) flags.push({type:'cooc',icon:'◫',color:'#00C8FF',node_id:null,title:'Mostly Co-occurrence Links',desc:`${coOccOnly} of ${links.length} edges are co-occurrence only. Try longer text with clearer subject-verb-object patterns for richer relationships.`});
+  return flags;
+}
+
+// ══════════════════════════════════════════════════════
+//  DUPLICATES
+// ══════════════════════════════════════════════════════
+function findDupes(nodes) {
+  const groups=[], used=new Set();
+  const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
+  nodes.forEach((a,i)=>{
+    if(used.has(a.id))return;
+    const na=norm(a.name);
+    const similar=nodes.slice(i+1).filter(b=>{
+      if(used.has(b.id)||b.type!==a.type)return false;
+      const nb=norm(b.name);
+      if((na.includes(nb)||nb.includes(na))&&Math.min(na.length,nb.length)>2)return true;
+      return false;
+    });
+    if(similar.length){
+      const g=[a,...similar];g.forEach(n=>used.add(n.id));groups.push(g);
+    }
+  });
+  return groups;
+}
+
+// ══════════════════════════════════════════════════════
+//  FILE UPLOAD — TXT / CSV / text-PDF → input box
+//  Parses locally; the file never leaves the machine.
+// ══════════════════════════════════════════════════════
+async function handleFile(file){
+  if(!file) return;
+  const status=document.getElementById('file-status');
+  const setFS=(m,c)=>{ status.textContent=m; status.style.color=c||'#3A5A72'; };
+  const name=file.name.toLowerCase();
+  setFS(`Reading ${file.name}…`, '#4A7090');
+  try {
+    let text='';
+    if(name.endsWith('.pdf') || file.type==='application/pdf')   text=await pdfToText(file);
+    else if(name.endsWith('.csv') || file.type==='text/csv')     text=csvToText(await file.text());
+    else                                                         text=await file.text();   // .txt / plain
+    text=text.trim();
+    if(!text){ setFS("No extractable text found — a scanned/image PDF? OCR isn't supported yet.", '#FF6B35'); return; }
+    document.getElementById('text-input').value=text;
+    const words=text.split(/\s+/).filter(Boolean).length;
+    setFS(`✓ Loaded ${file.name} — ${words.toLocaleString()} words. Review, then Analyse.`, '#00FF9D');
+  } catch(e){
+    setFS(`✗ ${e.message}`, '#FF6B35');
+  } finally {
+    document.getElementById('file-input').value='';   // let the same file be re-picked
+  }
+}
+
+// CSV → readable pseudo-prose: the header row labels each cell so NER/the LLM has context
+function csvToText(raw){
+  const rows=parseCSV(raw);
+  if(!rows.length) return '';
+  const headers=rows[0].map(h=>h.trim());
+  const body=rows.slice(1).filter(r=>r.some(c=>(c||'').trim()));
+  if(!body.length) return rows.map(r=>r.join(', ')).join('. ');   // header-only or single row
+  return body.map(r=>
+    headers.map((h,i)=> (r[i]&&r[i].trim()) ? (h?`${h}: ${r[i].trim()}`:r[i].trim()) : '')
+           .filter(Boolean).join(', ')
+  ).join('. ') + '.';
+}
+
+// Minimal quote-aware CSV parser (handles "quoted, fields" and "" escapes)
+function parseCSV(text){
+  const rows=[]; let row=[], field='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], n=text[i+1];
+    if(inQ){
+      if(c==='"' && n==='"'){ field+='"'; i++; }
+      else if(c==='"') inQ=false;
+      else field+=c;
+    } else if(c==='"') inQ=true;
+    else if(c===',') { row.push(field); field=''; }
+    else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+    else if(c!=='\r') field+=c;
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.length>1 || (r[0]||'').trim());
+}
+
+// PDF → text via pdf.js. Text-based PDFs only — scanned/image docs yield nothing (no OCR).
+async function pdfToText(file){
+  if(typeof pdfjsLib==='undefined') throw new Error('PDF library still loading — wait a moment and try again');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const status=document.getElementById('file-status');
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const pages=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    status.textContent=`Reading PDF… page ${p}/${pdf.numPages}`;
+    const page=await pdf.getPage(p);
+    const content=await page.getTextContent();
+    pages.push(content.items.map(it=>it.str).join(' '));
+  }
+  return pages.join('\n\n');
+}
+
+// ══════════════════════════════════════════════════════
+//  RUN ANALYSIS — branches on engine mode
+// ══════════════════════════════════════════════════════
+async function runAnalysis() {
+  const text = document.getElementById('text-input').value.trim();
+  if (!text) { toast('Paste some text first', 'err'); return; }
+
+  const maxEntities = parseInt(document.getElementById('max-entities').value)||25;
+  document.getElementById('btn-analyse').disabled = true;
+  setStatus('ANALYZING');
+
+  try {
+    let analysis;
+
+    if (state.engine === 'llm') {
+      // ── LLM PATH ──
+      if (text.length > LLM_CHAR_CAP) toast(`⚠ Text is ${text.length.toLocaleString()} chars — LLM mode analyzes only the first ${LLM_CHAR_CAP.toLocaleString()}`, 'warn');
+      setStep('◉ Calling local LLM…');
+      analysis = await callLLM(text, maxEntities);
+      setStep('◉ Computing SNA…');
+    } else {
+      // ── LOCAL NLP PATH ──
+      if (typeof nlp === 'undefined') {
+        toast('NLP library still loading — wait a moment and try again', 'err');
+        return;
+      }
+      if (text.split(/\s+/).length < 30) toast('Text is very short — results may be sparse', 'warn');
+
+      // Run sync NLP in a timeout so UI can update first
+      await new Promise(resolve => setTimeout(resolve, 50));
+      analysis = extractEntities(text);
+      setStep('◉ Computing SNA…');
+    }
+
+    const sna   = computeSNA(analysis.nodes, analysis.links);
+    const flags  = detectFlags(analysis.nodes, analysis.links, sna);
+    const dupes  = findDupes(analysis.nodes);
+
+    state.analysis=analysis; state.sna=sna; state.flags=flags; state.dupes=dupes;
+    state.selectedNode=null; state.pinnedNodes={};
+
+    renderAll();
+    setStatus('READY'); setStep('');
+    toast(`✓ ${analysis.nodes.length} entities · ${analysis.links.length} connections`);
+    if (dupes.length) setTimeout(()=>toast(`⚠ ${dupes.length} possible duplicate group(s)`, 'warn'), 800);
+
+  } catch(e) {
+    setStatus('ERROR'); setStep('');
+    toast(e.message, 'err'); console.error(e);
+  } finally {
+    document.getElementById('btn-analyse').disabled = false;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════
+function renderAll() {
+  renderGraph();
+  renderEntityList();
+  renderFlags();
+  renderDupes();
+  renderStats();
+  document.getElementById('btn-export').style.display='block';
+  document.getElementById('empty-state').style.display='none';
+  document.getElementById('zoom-ctrl').style.display='flex';
+  document.getElementById('entity-controls').style.display='block';
+  document.getElementById('entity-empty').style.display='none';
+}
+
+function renderStats() {
+  if(!state.analysis||!state.sna) return;
+  const stats=state.sna.graph_stats||{};
+  const metrics=state.sna.node_metrics||{};
+  document.getElementById('stat-nodes').textContent=state.analysis.nodes.length;
+  document.getElementById('stat-edges').textContent=state.analysis.links.length;
+  document.getElementById('stat-density').textContent=stats.density!==undefined?(stats.density*100).toFixed(1)+'%':'—';
+  const top=[...state.analysis.nodes].sort((a,b)=>(metrics[b.id]?.betweenness||0)-(metrics[a.id]?.betweenness||0))[0];
+  document.getElementById('stat-bridge').textContent=top?(top.name.length>14?top.name.slice(0,13)+'…':top.name):'—';
+}
+
+function filterEntities() { state.search=document.getElementById('search-input').value; renderEntityList(); }
+function setTypeFilter(t) { state.filterType=t; renderEntityList(); }
+
+function renderEntityList() {
+  if(!state.analysis) return;
+  const nodes=state.analysis.nodes;
+  const types=['all',...new Set(nodes.map(n=>n.type))];
+  document.getElementById('type-filters').innerHTML=types.map(t=>
+    `<button class="btn-sm ${state.filterType===t?'active':''}" onclick="setTypeFilter('${t}')">${t}</button>`).join('');
+
+  const filtered=nodes.filter(n=>{
+    if(state.filterType!=='all'&&n.type!==state.filterType)return false;
+    if(state.search&&!n.name.toLowerCase().includes(state.search.toLowerCase()))return false;
+    return true;
+  });
+  document.getElementById('entity-count').textContent=`${filtered.length} of ${nodes.length} entities`;
+
+  const byType={};
+  filtered.forEach(n=>{(byType[n.type]=byType[n.type]||[]).push(n);});
+  const metrics=state.sna?.node_metrics||{};
+  const list=document.getElementById('entity-list');
+  list.innerHTML='';
+
+  for(const [type,group] of Object.entries(byType)){
+    const col=TYPE_COLORS[type]||'#888';
+    const hdr=document.createElement('div');
+    hdr.style.cssText='display:flex;align-items:center;gap:6px;font-size:.56rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3A5A72;margin-bottom:5px;margin-top:8px';
+    hdr.innerHTML=`<div style="width:6px;height:6px;border-radius:50%;background:${col}"></div>${type}<div style="margin-left:auto;background:#1E3045;border-radius:4px;padding:1px 5px">${group.length}</div>`;
+    list.appendChild(hdr);
+    [...group].sort((a,b)=>b.mentions-a.mentions).forEach(n=>{
+      const card=document.createElement('div');
+      const confBorder=n.confidence==='low'?'rgba(255,107,53,.3)':n.confidence==='medium'?'rgba(255,184,48,.2)':'#1A2A38';
+      card.className=`entity-card ${state.selectedNode?.id===n.id?'selected':''}`;
+      card.style.borderColor=confBorder;
+      card.onclick=()=>selectNode(n);
+      card.innerHTML=`
+        <div class="dot" style="background:${col}"></div>
+        <div style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.name)}</div>
+        <div style="font-size:.5rem;color:#3A5A72">${n.mentions}×</div>
+        ${state.pinnedNodes[n.id]?'<span style="color:#FFB830;font-size:.58rem">📌</span>':''}
+        <div style="font-size:.52rem;color:#4A7090">${n.degree}↔</div>
+      `;
+      list.appendChild(card);
+    });
+  }
+}
+
+function renderFlags() {
+  const flags=state.flags||[];
+  const badge=document.getElementById('flag-badge');
+  badge.style.display=flags.length?'inline':'none'; badge.textContent=flags.length;
+  const list=document.getElementById('flag-list');
+  const empty=document.getElementById('flag-empty');
+  list.innerHTML=''; empty.style.display=flags.length?'none':'block';
+  flags.forEach(f=>{
+    const d=document.createElement('div');
+    d.className='flag-card'; d.style.borderColor=`${f.color}44`;
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+        <span style="color:${f.color}">${f.icon}</span>
+        <span style="font-size:.62rem;font-weight:700;color:${f.color}">${f.title}</span>
+      </div>
+      <div style="font-size:.59rem;color:#4A7090;line-height:1.65">${esc(f.desc)}</div>
+      ${f.node_id?`<button class="btn-sm" onclick="selectNodeById('${f.node_id}')" style="margin-top:5px;color:${f.color};border-color:${f.color}44">→ Show entity</button>`:''}
+    `;
+    list.appendChild(d);
+  });
+}
+
+function renderDupes() {
+  const dupes=state.dupes||[];
+  const badge=document.getElementById('dupe-badge');
+  badge.style.display=dupes.length?'inline':'none'; badge.textContent=dupes.length;
+  const list=document.getElementById('dupe-list');
+  const empty=document.getElementById('dupe-empty');
+  list.innerHTML=''; empty.style.display=dupes.length?'none':'block';
+  dupes.forEach((group,gi)=>{
+    const d=document.createElement('div'); d.className='dupe-card';
+    d.innerHTML=`
+      <div style="font-size:.56rem;font-weight:700;letter-spacing:.08em;color:#A855F7;margin-bottom:7px">POSSIBLE DUPLICATE</div>
+      ${group.map(n=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><div class="dot" style="background:${TYPE_COLORS[n.type]||'#888'}"></div><div style="font-size:.62rem;color:#C8E0EE">${esc(n.name)} (${n.mentions}×)</div></div>`).join('')}
+      <button onclick="mergeDupes(${gi})" style="width:100%;padding:5px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:6px;cursor:pointer;font-size:.6rem;color:#A855F7;margin-top:5px">
+        ⟵ Merge → keep "${esc(group[0].name)}"
+      </button>
+    `;
+    list.appendChild(d);
+  });
+}
+
+function mergeDupes(gi) {
+  const group=state.dupes[gi], keep=group[0];
+  const removeIds=new Set(group.slice(1).map(n=>n.id));
+  state.analysis.nodes=state.analysis.nodes.filter(n=>!removeIds.has(n.id));
+  state.analysis.links=state.analysis.links
+    .map(l=>{
+      const s=typeof l.source==='object'?l.source.id:l.source, t=typeof l.target==='object'?l.target.id:l.target;
+      return {...l,source:removeIds.has(s)?keep.id:s,target:removeIds.has(t)?keep.id:t};
+    }).filter(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;return s!==t;});
+  const deg={};state.analysis.nodes.forEach(n=>(deg[n.id]=0));
+  state.analysis.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;deg[s]=(deg[s]||0)+1;deg[t]=(deg[t]||0)+1;});
+  state.analysis.nodes.forEach(n=>(n.degree=deg[n.id]||0));
+  state.sna=computeSNA(state.analysis.nodes,state.analysis.links);
+  state.flags=detectFlags(state.analysis.nodes,state.analysis.links,state.sna);
+  state.dupes=findDupes(state.analysis.nodes);
+  if(state.selectedNode&&removeIds.has(state.selectedNode.id))state.selectedNode=null;
+  renderAll(); renderDetail();
+  toast(`Merged → ${keep.name}`);
+}
+
+// ══════════════════════════════════════════════════════
+//  NODE SELECTION + DETAIL
+// ══════════════════════════════════════════════════════
+function selectNode(n) { state.selectedNode=n; renderEntityList(); renderDetail(); }
+function selectNodeById(id) { const n=state.analysis?.nodes.find(x=>x.id===id); if(n){selectNode(n);setTab('entities');} }
+function closeDetail() { state.selectedNode=null; document.getElementById('detail').style.display='none'; renderEntityList(); }
+function togglePin(nodeId) {
+  if(state.pinnedNodes[nodeId]){delete state.pinnedNodes[nodeId];}
+  else{const nd=d3g?.selectAll('g.node').filter(d=>d.id===nodeId).datum();state.pinnedNodes[nodeId]={x:nd?.x||0,y:nd?.y||0};}
+  renderDetail(); renderEntityList(); updatePins();
+}
+
+function renderDetail() {
+  const n=state.selectedNode, el=document.getElementById('detail');
+  if(!n){el.style.display='none';return;}
+  el.style.display='block';
+  const m=state.sna?.node_metrics?.[n.id]||{};
+  const col=TYPE_COLORS[n.type]||'#888';
+  const isPinned=!!state.pinnedNodes[n.id];
+  const conns=(state.analysis?.links||[]).filter(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;return s===n.id||t===n.id;}).map(l=>{
+    const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;
+    const sName=typeof l.source==='object'?l.source.name:state.analysis.nodes.find(x=>x.id===s)?.name;
+    const tName=typeof l.target==='object'?l.target.name:state.analysis.nodes.find(x=>x.id===t)?.name;
+    return{name:s===n.id?tName:sName,rel:l.relationship,dir:s===n.id?'→':'←',conf:l.confidence};
+  });
+  function sBar(label,val,col){const pct=Math.min(100,Math.max(0,(val||0)*100));return`<div style="margin-bottom:4px"><div class="score-row"><span style="font-size:.57rem;color:#4A7090;font-weight:600">${label}</span><span style="font-size:.57rem;color:${col};font-weight:700">${(val||0).toFixed(3)}</span></div><div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${col}"></div></div></div>`;}
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:.53rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:${col}22;border:1px solid ${col}44;color:${col}">${n.type}</div>
+      <div style="display:flex;gap:5px">
+        <button class="btn-sm ${isPinned?'active':''}" onclick="togglePin('${n.id}')" style="${isPinned?'color:#FFB830;border-color:#FFB830':''}">📌</button>
+        <button class="btn-sm" onclick="closeDetail()">✕</button>
+      </div>
+    </div>
+    <div style="font-family:'Oxanium',sans-serif;font-size:.94rem;font-weight:800;color:#C8E0EE;margin-bottom:7px;line-height:1.2">${esc(n.name)}</div>
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
+      <span style="font-size:.54rem;color:#C8E0EE;background:#1A2A38;border-radius:3px;padding:1px 6px">${n.mentions} mention${n.mentions!==1?'s':''}</span>
+      <span style="font-size:.54rem;color:${n.confidence==='high'?'#00FF9D':n.confidence==='medium'?'#FFB830':'#FF6B35'};background:${n.confidence==='high'?'rgba(0,255,157,.1)':n.confidence==='medium'?'rgba(255,184,48,.1)':'rgba(255,107,53,.1)'};border-radius:3px;padding:1px 6px">${n.confidence} conf</span>
+    </div>
+    <div style="font-size:.62rem;color:#4A7090;line-height:1.7;margin-bottom:12px">${esc(n.description)}</div>
+    <div style="background:#101820;border:1px solid #1A2A38;border-radius:9px;padding:10px 11px;margin-bottom:12px">
+      <div class="detail-label" style="margin-bottom:8px">SNA Scores</div>
+      ${sBar('Degree Centrality',m.degree_centrality,'#5AACDC')}
+      ${sBar('Betweenness',m.betweenness,'#00C8FF')}
+      ${sBar('Closeness',m.closeness,'#00FF9D')}
+      ${sBar('Eigenvector',m.eigenvector,'#FFB830')}
+      ${sBar('PageRank',m.pagerank,'#FF6B35')}
+      ${sBar('Clustering',m.clustering,'#A855F7')}
+    </div>
+    <div class="detail-label" style="margin-bottom:7px">Connections (${conns.length})</div>
+    ${conns.map(c=>`<div style="display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:#101820;border:1px solid #1A2A38;border-radius:6px;margin-bottom:4px">
+      <span style="color:#3A5A72;flex-shrink:0;margin-top:1px">${c.dir}</span>
+      <div><div style="font-size:.62rem;color:#C8E0EE;font-weight:600">${esc(c.name||'?')}</div><div style="font-size:.56rem;color:#4A7090;margin-top:1px">${esc(c.rel)}</div></div>
+    </div>`).join('')}
+  `;
+}
+
+// ══════════════════════════════════════════════════════
+//  D3 GRAPH
+// ══════════════════════════════════════════════════════
+function renderGraph() {
+  const analysis=state.analysis; if(!analysis)return;
+  const svg=d3.select('#graph-svg'); svg.selectAll('*').remove();
+  const el=document.getElementById('canvas'), W=el.clientWidth, H=el.clientHeight;
+  svg.attr('width',W).attr('height',H);
+  const defs=svg.append('defs'), flt=defs.append('filter').attr('id','glow-l');
+  flt.append('feGaussianBlur').attr('stdDeviation','3.5').attr('result','blur');
+  const fm=flt.append('feMerge'); fm.append('feMergeNode').attr('in','blur'); fm.append('feMergeNode').attr('in','SourceGraphic');
+
+  const nodes=analysis.nodes.map(n=>({...n,fx:state.pinnedNodes[n.id]?.x??null,fy:state.pinnedNodes[n.id]?.y??null}));
+  const links=analysis.links.map(l=>({...l}));
+  const g=svg.append('g'); d3g=g;
+  const zoom=d3.zoom().scaleExtent([0.05,8]).on('zoom',e=>g.attr('transform',e.transform));
+  d3zoom=zoom; d3svg=svg; svg.call(zoom);
+
+  const metrics=state.sna?.node_metrics||{};
+  const eigScore=n=>metrics[n.id]?.eigenvector??0;
+  const rScale=n=>8+(n.degree||0)*2+eigScore(n)*10;
+  const confColors={high:'#00FF9D',medium:'#FFB830',low:'#FF6B35'};
+
+  const link=g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke',d=>`rgba(40,80,110,${d.confidence==='low'?0.2:d.confidence==='medium'?0.4:0.6})`)
+    .attr('stroke-width',d=>(d.strength||1)*1.3)
+    .attr('stroke-dasharray',d=>d.strength===1||d.confidence==='low'?'5,4':'none');
+  link.append('title').text(d=>`${d.relationship} [${d.confidence}]`);
+
+  const sim=d3.forceSimulation(nodes)
+    .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>130-(d.strength||1)*18))
+    .force('charge',d3.forceManyBody().strength(-300))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collision',d3.forceCollide(30));
+  d3sim=sim;
+
+  const node=g.append('g').selectAll('g.node').data(nodes).join('g').attr('class','node').attr('cursor','pointer')
+    .call(d3.drag()
+      .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);if(!state.pinnedNodes[d.id]){d.fx=null;d.fy=null;}})
+    )
+    .on('click',(e,d)=>{e.stopPropagation();selectNode(d);})
+    .on('dblclick',(e,d)=>{e.stopPropagation();togglePin(d.id);});
+
+  node.append('circle').attr('r',d=>rScale(d)+6).attr('fill','none')
+    .attr('stroke',d=>confColors[d.confidence]||'#00FF9D').attr('stroke-width',1)
+    .attr('stroke-dasharray',d=>d.confidence==='low'?'4,3':d.confidence==='medium'?'8,3':'none')
+    .attr('opacity',d=>d.confidence==='high'?0:0.5);
+  node.append('circle').attr('r',d=>rScale(d)+4).attr('fill',d=>TYPE_COLORS[d.type]||'#888').attr('opacity',0.1).attr('filter','url(#glow-l)');
+  node.append('circle').attr('r',d=>rScale(d)).attr('fill',d=>TYPE_COLORS[d.type]||'#888').attr('fill-opacity',0.2).attr('stroke',d=>TYPE_COLORS[d.type]||'#888').attr('stroke-width',1.6);
+  node.append('text').attr('text-anchor','middle').attr('dy','0.35em').attr('font-size','9px').attr('fill',d=>TYPE_COLORS[d.type]).attr('pointer-events','none').text(d=>TYPE_ICONS[d.type]||'●');
+  node.append('text').attr('text-anchor','middle').attr('dy',d=>rScale(d)+12).attr('font-family',"'JetBrains Mono',monospace").attr('font-size','8.5px').attr('font-weight','600').attr('fill','#C8E0EE').attr('pointer-events','none').text(d=>d.name.length>18?d.name.slice(0,17)+'…':d.name);
+  node.append('circle').attr('r',4).attr('cx',d=>rScale(d)-1).attr('cy',d=>-(rScale(d)-1)).attr('fill','#FFB830').attr('stroke','#060A0F').attr('stroke-width',1).attr('opacity',d=>state.pinnedNodes[d.id]?1:0).attr('class','pin-dot');
+  node.append('title').text(d=>`${d.name}\n${d.type} · ${d.mentions} mentions\nDouble-click to pin`);
+
+  sim.on('tick',()=>{
+    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    node.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+  svg.on('click',()=>closeDetail());
+  sim.on('end',()=>zoomFit());
+}
+
+function updatePins() {
+  if(!d3g||!d3sim)return;
+  d3g.selectAll('g.node').each(function(d){
+    if(state.pinnedNodes[d.id]){d.fx=state.pinnedNodes[d.id].x;d.fy=state.pinnedNodes[d.id].y;}
+    else{d.fx=null;d.fy=null;}
+  });
+  d3g.selectAll('circle.pin-dot').attr('opacity',d=>state.pinnedNodes[d.id]?1:0);
+  d3sim.alpha(0.1).restart();
+}
+
+function zoomIn(){d3svg?.transition().duration(300).call(d3zoom.scaleBy,1.4);}
+function zoomOut(){d3svg?.transition().duration(300).call(d3zoom.scaleBy,0.7);}
+function zoomReset(){d3svg?.transition().duration(400).call(d3zoom.transform,d3.zoomIdentity);}
+function zoomFit(){
+  if(!d3g||!d3svg)return;
+  const el=document.getElementById('canvas'),W=el.clientWidth,H=el.clientHeight;
+  const bb=d3g.node().getBBox();if(!bb.width)return;
+  const scale=Math.min(0.9,Math.min(W/bb.width,H/bb.height))*0.82;
+  const tx=W/2-scale*(bb.x+bb.width/2),ty=H/2-scale*(bb.y+bb.height/2);
+  d3svg.transition().duration(600).call(d3zoom.transform,d3.zoomIdentity.translate(tx,ty).scale(scale));
+}
+
+// ══════════════════════════════════════════════════════
+//  EXPORTS
+// ══════════════════════════════════════════════════════
+function toggleExport() {
+  state.showExport=!state.showExport;
+  document.getElementById('export-menu').style.display=state.showExport?'block':'none';
+}
+
+function doExport(type) {
+  if(!state.analysis)return;
+  const a=state.analysis, metrics=state.sna?.node_metrics||{}, date=new Date().toISOString().slice(0,10);
+  const slug=a.source.replace(/[^a-z0-9]/gi,'_');
+  const fmt=v=>typeof v==='number'?v.toFixed(4):'0.0000';
+
+  if(type==='csv'){
+    let nc='id,name,type,confidence,mentions,degree,degree_centrality,betweenness,closeness,eigenvector,pagerank,clustering\n';
+    a.nodes.forEach(n=>{const m=metrics[n.id]||{};nc+=`${csvCell(n.id)},${csvCell(n.name)},${csvCell(n.type)},${csvCell(n.confidence)},${n.mentions},${n.degree},${fmt(m.degree_centrality)},${fmt(m.betweenness)},${fmt(m.closeness)},${fmt(m.eigenvector)},${fmt(m.pagerank)},${fmt(m.clustering)}\n`;});
+    dl(nc,`trapline_${slug}_nodes_${date}.csv`,'text/csv');
+    const nodeNames=Object.fromEntries(a.nodes.map(n=>[n.id,n.name]));
+    let ec='source_id,source_name,target_id,target_name,relationship,strength,confidence\n';
+    a.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;ec+=`${csvCell(s)},${csvCell(nodeNames[s]||s)},${csvCell(t)},${csvCell(nodeNames[t]||t)},${csvCell(l.relationship)},${l.strength},${csvCell(l.confidence)}\n`;});
+    setTimeout(()=>dl(ec,`trapline_${slug}_edges_${date}.csv`,'text/csv'),300);
+    toast('Downloading CSV files…');
+  } else if(type==='md'){
+    const nodeNames=Object.fromEntries(a.nodes.map(n=>[n.id,n.name]));
+    let md=`---\ntitle: "${a.title.replace(/"/g,"'")}"\ndate: ${date}\nsource: "${a.source.replace(/"/g,"'")}"\nnodes: ${a.nodes.length}\nedges: ${a.links.length}\n---\n\n# ${a.title}\n\n${a.summary}\n\n## Top Nodes\n\n| Entity | Type | Mentions | Betweenness | PageRank |\n|--------|------|----------|-------------|----------|\n`;
+    [...a.nodes].sort((x,y)=>(metrics[y.id]?.betweenness||0)-(metrics[x.id]?.betweenness||0)).slice(0,15).forEach(n=>{const m=metrics[n.id]||{};md+=`| [[${n.name}]] | ${n.type} | ${n.mentions} | ${fmt(m.betweenness)} | ${fmt(m.pagerank)} |\n`;});
+    md+=`\n## Relationships\n\n\`\`\`\n`;
+    a.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;md+=`[[${nodeNames[s]||s}]] --[${l.relationship}]--> [[${nodeNames[t]||t}]]\n`;});
+    md+='```\n';
+    dl(md,`trapline_${slug}_${date}.md`,'text/markdown');
+    toast('Downloading Markdown…');
+  } else if(type==='json'){
+    dl(JSON.stringify(a,null,2),`trapline_${slug}_${date}.json`,'application/json');
+    toast('Downloading JSON…');
+  }
+  state.showExport=false;
+  document.getElementById('export-menu').style.display='none';
+}
+
+// Close export on outside click
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#export-menu')&&!e.target.closest('#btn-export')){
+    document.getElementById('export-menu').style.display='none';
+    state.showExport=false;
+  }
+});
+
+// Persist LLM settings on change
+document.getElementById('llm-url').addEventListener('change', saveSettings);
+document.getElementById('llm-model').addEventListener('change', saveSettings);
+
+// Load saved settings on startup
+loadSettings();
+</script>
+</body>
+</html>

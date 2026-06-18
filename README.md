@@ -1,0 +1,129 @@
+# Trapline — Entity Network Intelligence
+
+**Paste text. Get a network. Nothing leaves your machine.**
+
+> Turn unstructured text into an interactive relationship graph for OSINT and investigative analysis — locally and privately, in your browser.
+
+<!-- TODO: add a screenshot or demo GIF here once Phase 1 assets are ready -->
+<!-- ![Trapline demo](docs/demo.gif) -->
+
+---
+
+## Why Trapline is different
+
+Most network-analysis tools assume you already know your starting point. Maltego, SpiderFoot, and similar tools pivot outward from a selector — a domain, an IP, a username — querying data sources to expand the picture. The newer text-to-graph tools work from prose instead, but they're built for engineers: stand up a database, run Docker, supply a cloud LLM key. Both approaches assume technical setup and a technical operator.
+
+Trapline assumes neither. Open one HTML file, paste in an article or report, and you get an interactive relationship graph with the social-network metrics — degree, betweenness, closeness, PageRank — already calculated, so the key actors and the critical bridges between them are visible at a glance. There's no installation, no database, and no account. Extraction runs locally — using built-in offline analysis out of the box, or a local language model you point it at — so the source text never leaves your machine unless you choose to send it somewhere.
+
+The point is to make link analysis usable without a link-analysis toolchain. If you can use a browser, you can map a network.
+
+---
+
+## Features
+
+- **Two extraction engines, both private** — built-in rule-based extraction (compromise.js) runs fully offline with no setup, no key, and no model download. For higher-quality results, point Trapline at any OpenAI-compatible LLM endpoint (Ollama, LM Studio, llama.cpp, or a remote provider).
+- **One-click model picker** — list the models actually installed on your LLM endpoint and choose from a dropdown, so you never have to remember exact tag names.
+- **Paste or upload** — type/paste text directly, or load a `.txt`, `.csv`, or text-based `.pdf`. Files are parsed in your browser and never uploaded; scanned or image-only PDFs aren't supported yet (no OCR).
+- **Interactive force-directed graph** — built on D3.js; node size reflects how central a node is, and confidence is shown visually.
+- **Social network analysis, computed for you** — degree centrality, betweenness, closeness, eigenvector centrality, PageRank, and clustering coefficient, all calculated in-browser.
+- **Cleanup tools** — flag anomalies, and detect and merge duplicate entities.
+- **Pin and arrange** — double-click nodes to pin them and lay the network out the way you want.
+- **Exports** — CSV (nodes + edges, with SNA metrics), Obsidian-ready Markdown, and raw JSON.
+
+---
+
+## Requirements
+
+For the default offline mode, all you need is **a modern web browser** — that's it.
+
+To use a language model for stronger extraction (optional), run a local OpenAI-compatible endpoint and point Trapline at it. For example, with [Ollama](https://ollama.com):
+
+```bash
+ollama pull qwen2.5:3b
+```
+
+Then set the endpoint to `http://localhost:11434/v1/chat/completions` in Trapline's config panel, click **List Models**, and pick `qwen2.5:3b` from the dropdown (or type a model name directly if your endpoint doesn't expose a list). LM Studio and llama.cpp work the same way; a remote provider such as OpenAI works too if you supply a key.
+
+> **Model size and memory:** small models (4B or under) run slowly on CPU — expect roughly 30–120 seconds per analysis, with lower quality than a frontier model, but fully private. The model also has to fit in RAM: a 3B model such as `qwen2.5:3b` or `llama3.2:3b` needs about 2–3 GB, while `gemma3:4b` needs ~4 GB. Ollama gates loading on *free* memory, so on a small or busy machine a 4B model can refuse to load even when the OS reports plenty of reclaimable cache available — if you see a memory error, switch to a 3B model.
+>
+> **Remote endpoints:** if the model runs on another machine rather than `localhost`, that endpoint must accept cross-origin requests from a local file. For Ollama, set `OLLAMA_HOST=0.0.0.0` so it listens beyond localhost and `OLLAMA_ORIGINS=*` so it accepts the request, and reach it over a private network such as Tailscale rather than exposing the port to the internet.
+>
+> First load fetches D3.js, compromise.js, and the UI fonts from a CDN, then caches them. The text you analyze is never sent to those CDNs — see [Privacy](#privacy).
+
+---
+
+## Quick start
+
+1. Download `trapline.html`.
+2. Open it in your browser (double-click, or drag it into a browser window).
+3. Paste your text into the input panel — or click **Upload** to load a `.txt`, `.csv`, or text-based `.pdf`.
+4. Click **Analyse**. Entities and relationships populate the graph.
+5. Explore, refine, and export.
+
+That's the whole setup. No build step, no server, and — in offline mode — nothing to install at all.
+
+<!-- TODO: link to sample inputs once added, e.g. examples/sample-report.txt -->
+
+---
+
+## Usage
+
+- **Analyze text** — paste an article, report, or document (works best with 200–2000 words of continuous prose) and click Analyse.
+- **Read the graph** — larger nodes are more central; use the SNA metrics to sort by betweenness or PageRank to find the actors that hold the network together.
+- **Refine** — review flagged anomalies and merge duplicate entities to clean up extraction noise.
+- **Arrange** — double-click nodes to pin them in place.
+- **Export** — send the network to CSV, Obsidian, or JSON for downstream work.
+
+---
+
+## Privacy
+
+Trapline is built to keep sensitive material on your machine. What leaves your device depends entirely on which extraction engine you choose:
+
+- **Offline mode (default):** rule-based extraction runs entirely in your browser. Your text goes nowhere.
+- **Local LLM:** if you point Trapline at a model running on your own machine (Ollama, LM Studio, llama.cpp), your text goes only to that local endpoint and no further.
+- **Remote LLM (your choice):** if you configure a remote provider such as OpenAI, your text is sent to that provider. This is the only mode in which your text leaves your machine, and it only happens if you set it up.
+- **Stored settings:** your engine choice, endpoint URL, and model name are saved in the browser's `localStorage` for convenience. An API key, if you enter one, is used only for live requests and is not written to disk — it lives in the page only while the tab is open.
+
+---
+
+## Limitations
+
+Trapline v1 is an honest proof-of-concept of the text → graph pipeline, not a finished analytic platform. Known limits:
+
+- **Extraction is imperfect.** Offline mode uses pattern- and rule-based NLP (compromise.js) and will miss entities or relationships that don't fit its patterns; coreference resolution is heuristic and can mis-attribute pronouns. Verify findings against the source.
+- **Small local models hallucinate.** A 3–4B model will occasionally invent entities or relationships not present in the text. Larger or remote models reduce this but don't eliminate it.
+- **LLM input is capped at 5,000 characters.** In LLM mode, longer text is truncated to the first 5,000 characters (you'll see a warning). Offline mode reads the full text. The cap is lifted in v2's server-side pipeline.
+- **No manual entity editing yet.** You can merge detected duplicates, but renaming, retyping, or hand-correcting entities is planned, not present.
+
+---
+
+## Roadmap
+
+Trapline ships in two stages:
+
+- **v1 — single-file HTML (current):** self-contained, in-browser, local extraction. This is the shipping prototype.
+- **v2 — Python + web frontend (next):** a proper rebuild with a FastAPI backend, real scraping, structured data-source plugins (Shodan, WiGLE, Censys, crt.sh), and `pip` / Docker distribution.
+
+<!-- TODO: link to a fuller ROADMAP.md if you want to publish one -->
+
+---
+
+## Built with
+
+- [D3.js](https://d3js.org/) — force-directed graph rendering
+- [compromise.js](https://github.com/spencermountain/compromise) — offline rule-based NLP
+- [pdf.js](https://mozilla.github.io/pdf.js/) — in-browser text extraction from PDF files
+- Any OpenAI-compatible LLM backend (Ollama, LM Studio, llama.cpp, OpenAI) — optional, for higher-quality extraction
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE) — free to use, modify, and distribute, including commercially, with attribution.
+
+---
+
+## Disclaimer
+
+Trapline is a tool for analyzing information you are authorized to collect and use. You are responsible for complying with applicable laws and the terms of service of any source you analyze. Automated extraction can be imperfect — verify findings before relying on them.
