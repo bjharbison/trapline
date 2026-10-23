@@ -154,6 +154,18 @@ textarea.inp{resize:none;line-height:1.65}
         <div id="llm-section" style="display:none">
           <div id="llm-config">
             <div class="cfg-row">
+              <div class="cfg-label">Provider</div>
+              <select id="llm-provider" class="inp" onchange="pickProvider(this.value)" style="font-size:.63rem;font-family:inherit">
+                <option value="local">Local — Ollama / LM Studio (private)</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="xai">xAI (Grok)</option>
+                <option value="custom">Custom OpenAI-compatible</option>
+              </select>
+            </div>
+            <div class="cfg-row">
               <div class="cfg-label">Endpoint URL</div>
               <input type="text" id="llm-url" class="inp" value="http://localhost:11434/v1/chat/completions"
                 placeholder="http://localhost:11434/v1/chat/completions" style="font-size:.63rem" />
@@ -166,9 +178,9 @@ textarea.inp{resize:none;line-height:1.65}
                 style="font-size:.63rem;margin-top:5px;display:none"></select>
             </div>
             <div class="cfg-row">
-              <div class="cfg-label">API Key <span style="color:#2A4060;font-weight:400">(optional — leave blank for Ollama)</span></div>
+              <div class="cfg-label">API Key <span id="llm-key-hint" style="color:#2A4060;font-weight:400">(optional — leave blank for Ollama)</span></div>
               <input type="password" id="llm-key" class="inp" placeholder="sk-… or blank for local"
-                style="font-size:.63rem" />
+                autocomplete="off" style="font-size:.63rem" />
             </div>
             <div style="display:flex;gap:6px;margin-top:6px">
               <button class="btn-sm" onclick="testConnection()" id="btn-test" style="flex:1">⚡ Test Connection</button>
@@ -177,7 +189,7 @@ textarea.inp{resize:none;line-height:1.65}
             <div id="conn-status" style="font-size:.57rem;color:#3A5A72;margin-top:5px;min-height:14px"></div>
           </div>
           <div id="egress-notice" class="notice notice-info" style="font-size:.56rem"></div>
-          <div class="notice notice-warn" style="font-size:.56rem">
+          <div id="small-model-notice" class="notice notice-warn" style="font-size:.56rem">
             Small local models (≤4B) are slow on CPU — expect 30–120s per analysis, with lower quality than a frontier model.
           </div>
         </div>
@@ -326,6 +338,95 @@ function setEngine(e) {
 }
 
 // ══════════════════════════════════════════════════════
+//  LLM PROVIDERS
+//  Every provider is reached through its OpenAI-compatible chat-completions
+//  endpoint, so there is one request path. Presets only fill the URL; the
+//  per-provider quirks below are chosen from the URL's host, so a hand-edited
+//  URL still gets the right headers and body.
+// ══════════════════════════════════════════════════════
+const PROVIDERS = {
+  local:      {url:'http://localhost:11434/v1/chat/completions',                          hint:'qwen2.5:3b · llama3.2:3b · gemma3:4b'},
+  openai:     {url:'https://api.openai.com/v1/chat/completions',                          hint:'click List Models', host:'api.openai.com'},
+  anthropic:  {url:'https://api.anthropic.com/v1/chat/completions',                       hint:'click List Models', host:'api.anthropic.com'},
+  gemini:     {url:'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', hint:'click List Models', host:'generativelanguage.googleapis.com'},
+  openrouter: {url:'https://openrouter.ai/api/v1/chat/completions',                       hint:'click List Models', host:'openrouter.ai'},
+  xai:        {url:'https://api.x.ai/v1/chat/completions',                                hint:'click List Models', host:'api.x.ai'},
+  custom:     {url:'',                                                                    hint:'model name your endpoint expects'},
+};
+const LOCAL_MAX_TOKENS = 3000;   // small local models: keep output bounded
+const CLOUD_MAX_TOKENS = 16000;  // hosted models may spend part of this on hidden reasoning
+
+function urlHost(url) { try { return new URL(url).hostname; } catch { return ''; } }
+
+function providerFromUrl(url) {
+  const host = urlHost(url);
+  if (host && isLoopback(host)) return 'local';
+  for (const [k,p] of Object.entries(PROVIDERS)) if (p.host && p.host===host) return k;
+  return 'custom';
+}
+
+function pickProvider(p) {
+  const urlEl = document.getElementById('llm-url');
+  if (PROVIDERS[p].url) urlEl.value = PROVIDERS[p].url;
+  else { urlEl.value = ''; urlEl.focus(); }
+  document.getElementById('llm-model').value = '';
+  document.getElementById('llm-model-select').style.display = 'none';
+  document.getElementById('llm-key').value = '';   // never carry one provider's key to another
+  document.getElementById('conn-status').textContent = '';
+  updateEgressNotice();
+  saveSettings();
+}
+
+// Headers for a request. Anthropic needs an explicit opt-in header before it
+// answers a browser request, and its model list wants x-api-key, not Bearer.
+function llmHeaders(url, key, forModelList) {
+  const h = {'Content-Type':'application/json'};
+  const p = providerFromUrl(url);
+  if (p==='anthropic') {
+    h['anthropic-dangerous-direct-browser-access'] = 'true';
+    if (forModelList && key) { h['x-api-key'] = key; h['anthropic-version'] = '2023-06-01'; return h; }
+  }
+  if (key) h['Authorization'] = `Bearer ${key}`;
+  return h;
+}
+
+// Request body. OpenAI's reasoning models reject max_tokens and temperature;
+// current Claude models reject temperature below 1. Everyone else keeps the
+// low temperature, which helps small models stay on the JSON format.
+function llmBody(url, model, messages, maxTokens) {
+  const p = providerFromUrl(url);
+  const body = {model, messages};
+  if (p==='openai') { body.max_completion_tokens = maxTokens; return body; }
+  body.max_tokens = maxTokens;
+  if (p!=='anthropic') body.temperature = 0.1;
+  return body;
+}
+
+function llmMaxTokens(url) { return providerFromUrl(url)==='local' ? LOCAL_MAX_TOKENS : CLOUD_MAX_TOKENS; }
+
+// The provider's own error message is far more useful than a bare status code.
+async function llmError(r) {
+  const b = await r.text().catch(()=> '');
+  let msg = '';
+  try {
+    const j = JSON.parse(b), e = Array.isArray(j) ? j[0] : j;   // Gemini sometimes wraps errors in an array
+    msg = e?.error?.message || e?.message || '';
+  } catch {}
+  if (r.status===401 || r.status===403) return new Error(`HTTP ${r.status}: key rejected${msg ? ' — '+msg : ''}`);
+  return new Error(`HTTP ${r.status}: ${(msg || b).slice(0,150)}`);
+}
+
+// A browser reports a blocked cross-origin call as a bare "Failed to fetch".
+function llmNetworkHint(e, url) {
+  if (e instanceof TypeError) {
+    return new Error(providerFromUrl(url)==='local'
+      ? 'Could not reach the endpoint — is the model server running? Ollama also needs OLLAMA_ORIGINS set to allow this page.'
+      : 'Could not reach the endpoint — check the URL and your connection. The provider may also block requests from a browser page.');
+  }
+  return e;
+}
+
+// ══════════════════════════════════════════════════════
 //  LLM CONNECTION UTILS
 // ══════════════════════════════════════════════════════
 async function testConnection() {
@@ -337,14 +438,17 @@ async function testConnection() {
   btn.textContent='⏳ Testing…'; btn.disabled=true;
   status.style.color='#4A7090'; status.textContent='Connecting…';
   try {
-    const headers={'Content-Type':'application/json'};
-    if(key) headers['Authorization']=`Bearer ${key}`;
-    const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model,max_tokens:5,messages:[{role:'user',content:'Reply with the single word: OK'}]})});
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    if(!url)   throw new Error('Enter an endpoint URL');
+    if(!model) throw new Error('Enter a model name, or click List Models');
+    if(!key && providerFromUrl(url)!=='local' && providerFromUrl(url)!=='custom') throw new Error('This provider needs an API key');
+    // 256, not 5: reasoning models spend tokens before they answer
+    const body=llmBody(url, model, [{role:'user',content:'Reply with the single word: OK'}], 256);
+    const r=await fetch(url,{method:'POST',headers:llmHeaders(url,key),body:JSON.stringify(body)}).catch(e=>{throw llmNetworkHint(e,url);});
+    if(!r.ok) throw await llmError(r);
     const d=await r.json();
-    const reply=d.choices?.[0]?.message?.content||d.content?.[0]?.text||'?';
+    const reply=d.choices?.[0]?.message?.content||d.content?.[0]?.text||'';
     status.style.color='#00FF9D';
-    status.textContent=`✓ Connected · replied: "${reply.trim().slice(0,40)}"`;
+    status.textContent= reply ? `✓ Connected · replied: "${reply.trim().slice(0,40)}"` : '✓ Connected · key and model accepted';
     saveSettings();
   } catch(e) {
     status.style.color='#FF6B35';
@@ -357,14 +461,18 @@ async function fetchModels() {
   const url=document.getElementById('llm-url').value.trim();
   const key=document.getElementById('llm-key').value.trim();
   const status=document.getElementById('conn-status');
-  const base=url.replace(/\/v1\/chat\/completions.*$/,'');
+  // …/chat/completions → …/models works for every provider's layout (incl. Gemini's /v1beta/openai/)
+  const modelsUrl=url.replace(/\/chat\/completions\/?(\?.*)?$/,'/models');
   try {
-    const headers={};
-    if(key) headers['Authorization']=`Bearer ${key}`;
-    const r=await fetch(base+'/v1/models',{headers});
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    if(modelsUrl===url) throw new Error('Endpoint URL should end in /chat/completions');
+    const headers=llmHeaders(url,key,true); delete headers['Content-Type'];
+    const r=await fetch(modelsUrl,{headers}).catch(e=>{throw llmNetworkHint(e,url);});
+    if(!r.ok) throw await llmError(r);
     const d=await r.json();
-    const models=(d.data||d.models||[]).map(m=>m.id||m.name).filter(Boolean);
+    // Drop models that can't do chat (embeddings, speech, images, moderation)
+    const models=(d.data||d.models||[]).map(m=>m.id||m.name).filter(Boolean)
+      .filter(m=>!/embed|whisper|tts|dall-e|moderation|transcribe|imagen|veo|-image|realtime|audio/i.test(m))
+      .sort();
     const sel=document.getElementById('llm-model-select');
     const cur=document.getElementById('llm-model').value.trim();
     sel.innerHTML='';
@@ -406,8 +514,19 @@ function isLoopback(host) {
 
 function updateEgressNotice() {
   const el = document.getElementById('egress-notice');
-  let host = '';
-  try { host = new URL(document.getElementById('llm-url').value.trim()).hostname; } catch {}
+  const url  = document.getElementById('llm-url').value.trim();
+  const host = urlHost(url);
+  // Keep the rest of the panel in step with the URL (typed, picked, or restored)
+  const prov = providerFromUrl(url);
+  const sel  = document.getElementById('llm-provider');
+  if (sel.value!==prov && !(sel.value==='custom' && !url)) sel.value = prov;
+  const needsKey = prov!=='local' && prov!=='custom';
+  document.getElementById('llm-key-hint').textContent = needsKey
+    ? '(required — used for this tab only, never saved)'
+    : prov==='local' ? '(optional — leave blank for Ollama)' : '(if your endpoint needs one — never saved)';
+  document.getElementById('llm-key').placeholder = needsKey ? 'paste your API key' : 'sk-… or blank for local';
+  document.getElementById('llm-model').placeholder = (PROVIDERS[prov]||PROVIDERS.custom).hint;
+  document.getElementById('small-model-notice').style.display = prov==='local' ? 'block' : 'none';
   if (host && isLoopback(host)) {
     el.className = 'notice notice-info';
     el.textContent = 'Local endpoint — your text goes only to a model on this machine.';
@@ -471,9 +590,10 @@ async function callLLM(text, maxEntities) {
   const key   = document.getElementById('llm-key').value.trim();
   if (!url)   throw new Error('Enter an endpoint URL in the LLM config');
   if (!model) throw new Error('Enter a model name in the LLM config');
+  const prov = providerFromUrl(url);
+  if (!key && prov!=='local' && prov!=='custom') throw new Error('This provider needs an API key — enter it in the LLM config');
 
-  const headers = {'Content-Type':'application/json'};
-  if (key) headers['Authorization'] = `Bearer ${key}`;
+  const headers = llmHeaders(url, key);
 
   // Animated progress — small models take 30–120s
   const progressEl = document.getElementById('llm-progress');
@@ -493,17 +613,12 @@ async function callLLM(text, maxEntities) {
   try {
     const r = await fetch(url, {
       method:'POST', headers,
-      body: JSON.stringify({
-        model,
-        max_tokens: 3000,
-        temperature: 0.1,
-        messages: [
-          {role:'system', content:'You are a JSON-only extraction engine. Output only valid JSON. No markdown. No explanation.'},
-          {role:'user',   content: buildLLMPrompt(text, maxEntities)}
-        ]
-      })
-    });
-    if (!r.ok) { const b=await r.text().catch(()=>''); throw new Error(`HTTP ${r.status}: ${b.slice(0,150)}`); }
+      body: JSON.stringify(llmBody(url, model, [
+        {role:'system', content:'You are a JSON-only extraction engine. Output only valid JSON. No markdown. No explanation.'},
+        {role:'user',   content: buildLLMPrompt(text, maxEntities)}
+      ], llmMaxTokens(url)))
+    }).catch(e=>{ throw llmNetworkHint(e, url); });
+    if (!r.ok) throw await llmError(r);
     const data = await r.json();
     const raw  = data.choices?.[0]?.message?.content
               || data.content?.[0]?.text
@@ -573,7 +688,7 @@ function parseLLMResponse(raw) {
   data.id='llm_'+Date.now();
   data.source='LLM · '+document.getElementById('llm-model').value.trim();
   if(!data.title) data.title='LLM Analysis';
-  if(!data.summary) data.summary=`Extracted ${data.nodes.length} entities via local LLM.`;
+  if(!data.summary) data.summary=`Extracted ${data.nodes.length} entities via LLM.`;
   return data;
 }
 

@@ -21,7 +21,7 @@ The point is to make link analysis usable without a link-analysis toolchain. If 
 
 ## Features
 
-- **Two extraction engines, both private** — built-in rule-based extraction (compromise.js) runs fully offline with no setup, no key, and no model download. For higher-quality results, point Trapline at any OpenAI-compatible LLM endpoint (Ollama, LM Studio, llama.cpp, or a remote provider).
+- **Two extraction engines, private by default** — built-in rule-based extraction (compromise.js) runs fully offline with no setup, no key, and no model download. For higher-quality results, point Trapline at a local model (Ollama, LM Studio, llama.cpp). If you choose to, you can instead use a cloud provider with your own API key: OpenAI, Anthropic (Claude), Google Gemini, OpenRouter, xAI (Grok), or any other OpenAI-compatible endpoint.
 - **One-click model picker** — list the models actually installed on your LLM endpoint and choose from a dropdown, so you never have to remember exact tag names.
 - **Paste or upload** — type/paste text directly, or load a `.txt`, `.csv`, or text-based `.pdf`. Files are parsed in your browser and never uploaded; scanned or image-only PDFs aren't supported yet (no OCR).
 - **Interactive force-directed graph** — built on D3.js; node size reflects how central a node is, and confidence is shown visually.
@@ -42,7 +42,9 @@ To use a language model for stronger extraction (optional), run a local OpenAI-c
 ollama pull qwen2.5:3b
 ```
 
-Then set the endpoint to `http://localhost:11434/v1/chat/completions` in Trapline's config panel, click **List Models**, and pick `qwen2.5:3b` from the dropdown (or type a model name directly if your endpoint doesn't expose a list). LM Studio and llama.cpp work the same way; a remote provider such as OpenAI works too if you supply a key.
+Then set the endpoint to `http://localhost:11434/v1/chat/completions` in Trapline's config panel, click **List Models**, and pick `qwen2.5:3b` from the dropdown (or type a model name directly if your endpoint doesn't expose a list). LM Studio and llama.cpp work the same way.
+
+**Using a cloud provider instead (optional).** Switch the engine to **LLM**, pick your provider from the **Provider** list, paste your API key, click **List Models**, and choose a model. The provider fills in the endpoint for you. **Custom OpenAI-compatible** takes any other endpoint that speaks the same format, such as your own vLLM server. Your key is used only for this tab and is never saved. Your text is sent to that provider, and you pay its usage charges. The panel shows a warning whenever this is the case.
 
 > **Model size and memory:** small models (4B or under) run slowly on CPU — expect roughly 30–120 seconds per analysis, with lower quality than a frontier model, but fully private. The model also has to fit in RAM: a 3B model such as `qwen2.5:3b` or `llama3.2:3b` needs about 2–3 GB, while `gemma3:4b` needs ~4 GB. Ollama gates loading on *free* memory, so on a small or busy machine a 4B model can refuse to load even when the OS reports plenty of reclaimable cache available — if you see a memory error, switch to a 3B model.
 >
@@ -82,7 +84,7 @@ Trapline is built to keep sensitive material on your machine. What leaves your d
 
 - **Offline mode (default):** rule-based extraction runs entirely in your browser. Your text goes nowhere.
 - **Local LLM:** if you point Trapline at a model running on your own machine (Ollama, LM Studio, llama.cpp), your text goes only to that local endpoint and no further.
-- **Remote LLM (your choice):** if you configure a remote provider such as OpenAI, your text is sent to that provider. This is the only mode in which your text leaves your machine, and it only happens if you set it up. Whenever the endpoint isn't on your own machine, the config panel shows a warning naming the host your text will go to. That includes a model on another computer on your LAN or Tailscale network.
+- **Remote LLM (your choice):** if you configure a remote provider (OpenAI, Anthropic, Gemini, OpenRouter, xAI, or your own server elsewhere), your text is sent to that provider. This is the only mode in which your text leaves your machine, and it only happens if you set it up. Whenever the endpoint isn't on your own machine, the config panel shows a warning naming the host your text will go to. That includes a model on another computer on your LAN or Tailscale network.
 - **Stored settings:** your engine choice, endpoint URL, and model name are saved in the browser's `localStorage` for convenience. An API key, if you enter one, is used only for live requests and is not written to disk — it lives in the page only while the tab is open.
 
 ---
