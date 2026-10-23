@@ -17,6 +17,11 @@ Features considered but not in the current v1 build. Captured so they aren't los
 >
 > Partial names ("Varga" vs "Elena Varga") are still separate nodes on purpose: that is alias normalization, a human decision in the Dupes tab. Worth measuring whether the remaining coref is net-positive once eval material exists.
 
+### Still open (post-launch)
+- **Surname-only relationship fragments.** If no "Varga" node survives the mention/entity filters, a typed relationship whose subject is just "Varga" is wired to the only matching full name ("Elena Varga"). Single-candidate whole-token matching is intended ("John" → "John Smith"), but it is an inference, not a fact in the text.
+- **Name-inside-name co-occurrence.** "Okafor" co-occurs with "Daniel Okafor" in the same sentence because it matches inside the longer mention, which inflates centrality for partial-name nodes. Skip matches whose span falls inside a longer matched name.
+- **Leading "The" still splits entities** ("The FBI" / "FBI"). The stoplist also drops a real one-word "May" (Theresa May referred to by surname).
+
 > **Shipped in v1 (no longer backlog):** output escaping at all `innerHTML` sinks (`esc()`), plus CSV formula-injection neutralization, RFC 4180 quote-doubling, and YAML frontmatter escaping (`csvCell()` and the Markdown export). These were security hardening, not features — they live in `trapline.html`.
 
 ---

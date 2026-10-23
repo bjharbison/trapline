@@ -42,9 +42,15 @@ with sync_playwright() as p:
     check(find("Northgate Holdings paid Seaward Trading", ["Northgate Holdings", "Seaward Trading"]) is None,
           "fragment naming two entities -> no match")
     check(find("Varga", ["Elena Varga", "Varga"]) == "varga", "exact 'Varga' wins; not merged into 'Elena Varga'")
+    check(find("and", ["Bosnia and Herzegovina"]) is None, "filler fragment 'and' does not match inside a name")
+    check(find("The", ["The Hague"]) is None, "filler fragment 'The' does not match 'The Hague'")
+    check(find("new", ["New York"]) is None, "lowercase common word does not match inside a name")
 
     print("resolveCoref")
+    check("Bob left" not in coref("Alice met Bob. She left."), "'Alice met Bob. She left.' never becomes Bob")
     check(coref("Alice met Bob. She left.") == "Alice met Bob. She left.", "'Alice met Bob. She left.' unchanged")
+    check(coref("Alice Brown met Carol White. She left.") == "Alice Brown met Carol White. She left.",
+          "two compatible candidates -> unchanged")
     check(coref("Marcus Hale met Elena Varga. She left.") == "Marcus Hale met Elena Varga. Elena Varga left.",
           "She -> the only compatible person")
     check(coref("John Smith arrived. He left.") == "John Smith arrived. John Smith left.", "He -> sole antecedent")
@@ -55,7 +61,7 @@ with sync_playwright() as p:
     check(coref("Acme Corp grew. It hired staff.") == "Acme Corp grew. It hired staff.", "'It' unchanged")
     check(coref("The rain stopped. He left.") == "The rain stopped. He left.", "no antecedent in previous sentence -> unchanged")
     t = "Report one.\n\nJohn Smith arrived! Did he stay? no trailing stop"
-    check(coref(t) == t, "text without resolvable pronouns comes back byte-identical (incl. unterminated tail)")
+    check(coref(t) == t, "text without resolvable pronouns is unchanged, incl. an unterminated tail")
 
     print("names and stoplist")
     check(pg.evaluate("cleanName('Northgate Holdings,')") == "Northgate Holdings", "trailing comma stripped")
@@ -63,6 +69,9 @@ with sync_playwright() as p:
     check(pg.evaluate("cleanName('U.S.')") == "U.S.", "initialism keeps its final dot")
     check(pg.evaluate("nameKey('U.S.') === nameKey('US')"), "'U.S.' and 'US' share a key")
     check(pg.evaluate("nameKey('Marcus Hale') !== nameKey('Hale')"), "'Hale' and 'Marcus Hale' keep distinct keys")
+    check(pg.evaluate("nameKey(\"Elena Varga's\") !== nameKey('Elena Vargas')"), "possessive never collides with a different surname")
+    check(pg.evaluate("nameKey('Jose\u0301 Garci\u0301a') === nameKey('Jos\u00e9 Garc\u00eda')"), "decomposed and composed accents share a key")
+    check(pg.evaluate("cleanName('\u092e\u094b\u0926\u0940') === '\u092e\u094b\u0926\u0940'"), "trailing combining vowel sign kept")
 
     r = extract("Northgate Holdings, a broker, paid Brightwater Logistics. Investigators examined Northgate Holdings. "
                 "Later the board of Northgate Holdings met. NORTHGATE HOLDINGS denied it.")
@@ -78,7 +87,6 @@ with sync_playwright() as p:
     check("March 3" in names, "dated event 'March 3' kept")
     for real in ("Marcus Hale", "Elena Varga", "Rotterdam"):
         check(real in names, f"real entity '{real}' kept")
-    check("Varga" not in names or "Elena Varga" in names, "'Varga' never replaces 'Elena Varga'")
     ids = [n["id"] for n in r["nodes"]]
     check(len(ids) == len(set(ids)), "node ids are unique")
 
@@ -88,10 +96,8 @@ with sync_playwright() as p:
                 "The USS Cole Foundation received a donation. US officials met Johnson.")
     by_name = {n["name"]: n["id"] for n in r["nodes"]}
     check("Elena Varga" in by_name and "elena varga" not in by_name, "lowercase variant merged into 'Elena Varga'")
-    if "Varga" in by_name:
-        check(by_name["Varga"] != by_name["Elena Varga"], "'Varga' stays a separate node (Dupes tab decides)")
-    if "Hale" in by_name:
-        check(by_name["Hale"] != by_name.get("Marcus Hale"), "'Hale' stays a separate node")
+    check("Varga" in by_name and by_name["Varga"] != by_name["Elena Varga"], "'Varga' stays a separate node (Dupes tab decides)")
+    check("Hale" in by_name and by_name["Hale"] != by_name.get("Marcus Hale"), "'Hale' stays a separate node")
     check(all(l["source"] != l["target"] for l in r["links"]), "no self-loops")
     pair = lambda a, c: any({l["source"], l["target"]} == {by_name.get(a), by_name.get(c)} for l in r["links"])
     check(not pair("Elena Varga", "Northgate Holdings"), "'Varga runs Northgate' does not wire 'Elena Varga'")

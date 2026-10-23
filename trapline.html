@@ -732,13 +732,15 @@ function dl(content, filename, mime='text/plain') {
 }
 
 // Entity names come straight from text: drop surrounding punctuation ("Northgate Holdings," → "Northgate Holdings")
-// but keep the final dot of an initialism ("U.S."). nameKey: case/punctuation-only variants share one key.
+// but keep the final dot of an initialism ("U.S."). nameKey: case/punctuation-only variants share one key
+// (an apostrophe splits tokens, so "Varga's" never collides with "Vargas").
 function cleanName(s) {
-  s = String(s??'').replace(/\s+/g,' ').trim();
-  const t = s.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,'');
+  s = String(s??'').normalize('NFC').replace(/\s+/g,' ').trim();
+  const t = s.replace(/^[^\p{L}\p{M}\p{N}]+|[^\p{L}\p{M}\p{N}]+$/gu,'');
   return /\p{Lu}\.\p{Lu}$/u.test(t) && s.includes(t+'.') ? t+'.' : t;
 }
-function nameKey(s) { return cleanName(s).toLowerCase().replace(/[.'’]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim(); }
+function nameKey(s) { return cleanName(s).toLowerCase().replace(/\./g,'').replace(/[^\p{L}\p{M}\p{N}]+/gu,' ').trim(); }
+const FILLER = /^(the|a|an|of|in|on|at|by|for|with|this|that|these|those|it|its|and|or|but|to|from|as)$/;
 // Single words the NLP passes pick up that are never entities on their own. Dated events ("March 3") are unaffected.
 const NON_ENTITIES = new Set(('january february march april may june july august september october november december '+
   'monday tuesday wednesday thursday friday saturday sunday according however meanwhile moreover furthermore '+
@@ -848,9 +850,11 @@ function findEntityId(fragment, names, entityMap) {
   if (exact) return entityMap[exact];
   // Partial match on whole tokens only, never on short spans ("US" ≠ "USS Cole", "John" ≠ "Johnson").
   // A hit inside a longer hit is the same mention ("Hale" inside "Marcus Hale"). Still ambiguous → no match.
+  // A fragment inside a longer name must carry a capitalised token and not be all filler ("and" ≠ "Bosnia and Herzegovina").
   const within = (a, b) => (' '+b+' ').includes(' '+a+' ');
+  const named = f.length >= 3 && /\p{Lu}/u.test(fragment) && !f.split(' ').every(w => FILLER.test(w));
   let hits = names.map(n => [nameKey(n), entityMap[n]])
-    .filter(([n]) => (n.length >= 3 && within(n, f)) || (f.length >= 3 && within(f, n)));
+    .filter(([n]) => (n.length >= 3 && within(n, f)) || (named && within(f, n)));
   hits = hits.filter(([n]) => !hits.some(([o]) => o !== n && within(n, o)));
   const ids = new Set(hits.map(h => h[1]));
   return ids.size === 1 ? [...ids][0] : null;
@@ -880,7 +884,7 @@ function extractEntities(rawText) {
     const key = nameKey(name);
     if (name.length < 2 || name.length > 60 || !key) return;
     // Skip names made only of stopwords and non-entity words ("According", "June", "In June")
-    if (key.split(' ').every(w => NON_ENTITIES.has(w) || /^(the|a|an|of|in|on|at|by|for|with|this|that|these|those|it|its)$/.test(w))) return;
+    if (key.split(' ').every(w => NON_ENTITIES.has(w) || FILLER.test(w))) return;
     counts[key] = (counts[key]||0)+1;
     if (!typeMap[key]) typeMap[key] = type;
     // Show the first capitalised form ("Elena Varga" over "elena varga")
