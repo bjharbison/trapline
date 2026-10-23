@@ -1,0 +1,18 @@
+# Tests
+
+Browser tests for `trapline.html`, run in headless Chromium with Playwright. They are dev tooling only; the app itself stays a single file with no build step.
+
+```bash
+pip install playwright && python3 -m playwright install chromium
+bash tests/run_all.sh
+```
+
+`vendor.sh` fetches the same D3 and compromise.js builds the page loads from its CDN, so the tests run without CDN access.
+
+| Test | What it covers |
+|---|---|
+| `test_offline_smoke.py` | The offline engine runs end to end on a fictional fixture. Its entities and links are compared to `baseline_offline.json`. |
+| `test_providers.py` | Every LLM provider preset, using mocked APIs. Covers URLs, headers, body quirks, model listing, key errors, and that the key is never stored. |
+| `test_egress.py` | The panel warns whenever the endpoint isn't on this machine. |
+
+**Changing the baseline.** If an extraction change is intended, run `python3 tests/test_offline_smoke.py --update`. Commit the new baseline, and paste the +/- diff from the run before into the PR so the change can be reviewed.
