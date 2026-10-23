@@ -2,6 +2,8 @@
 
 **Paste text. Get a network. Nothing leaves your machine.**
 
+**[Try it in your browser](https://bjharbison.github.io/trapline/)**: no install. The hosted copy runs the same single file, and analysis still happens entirely on your machine.
+
 > Turn unstructured text into an interactive relationship graph for OSINT and investigative analysis — locally and privately, in your browser.
 
 <!-- TODO: add a screenshot or demo GIF here once Phase 1 assets are ready -->
