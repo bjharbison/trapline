@@ -6,19 +6,16 @@ Features considered but not in the current v1 build. Captured so they aren't los
 
 ---
 
-## Extraction quality (early post-launch)
+## Extraction quality
 
-These surfaced from a code read, not a feature wish. They affect accuracy, and two of them touch the project's core principle: never silently conflate distinct entities.
-
-### Fix `findEntityId` substring matching
-**What:** The partial-match branch returns a hit whenever either string contains the other (`n.includes(fragment) || fragment.includes(n)`). So "US" matches inside "USS Cole" and "Marcus," and "John" matches both "John Smith" and "Johnson."
-**Why it matters:** During relationship extraction this silently wires edges to the wrong node — a false merge with no human in the loop, unlike the Dupes tab. Highest-value of these.
-**Fix:** Require whole-token matching against word boundaries; refuse matches on very short fragments.
-
-### Make `resolveCoref` conservative
-**What:** It replaces every person-pronoun with the last-seen person across sentence boundaries, with no gender/number agreement and no ambiguity check. "Alice met Bob. She left." resolves "She" to Bob.
-**Why it matters:** It can manufacture relationships that aren't in the text — injecting wrong facts, not just awkward grammar.
-**Fix:** Only resolve a subject pronoun at sentence start when there's exactly one candidate antecedent; leave possessives and ambiguous cases alone. Worth measuring whether naive coref is net-positive at all once eval material exists.
+> **Shipped (offline engine, no longer backlog):**
+> - `findEntityId` matches exactly (case/punctuation-insensitive) first, then only on whole tokens; short fragments are refused and ambiguous fragments return no match. "US" no longer hits "USS Cole" or "Marcus", "John" no longer hits "Johnson".
+> - `resolveCoref` only replaces a sentence-initial He/She when the previous sentence names exactly one compatible person (presumed gender from compromise must not clash). Possessives, objects, mid-sentence pronouns, they/it and ambiguous cases are left alone. Still heuristic: a single antecedent of unknown gender is accepted.
+> - Entity names drop surrounding punctuation, and case/punctuation-only variants are one entity ("Northgate Holdings," = "Northgate Holdings").
+> - Small stoplist for non-entities: months, weekdays and discourse words ("According", "June", "In June"). Dated events like "March 3" are kept.
+> - No self-loops; distinct entities never share a node id.
+>
+> Partial names ("Varga" vs "Elena Varga") are still separate nodes on purpose: that is alias normalization, a human decision in the Dupes tab. Worth measuring whether the remaining coref is net-positive once eval material exists.
 
 > **Shipped in v1 (no longer backlog):** output escaping at all `innerHTML` sinks (`esc()`), plus CSV formula-injection neutralization, RFC 4180 quote-doubling, and YAML frontmatter escaping (`csvCell()` and the Markdown export). These were security hardening, not features — they live in `trapline.html`.
 

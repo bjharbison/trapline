@@ -731,45 +731,46 @@ function dl(content, filename, mime='text/plain') {
   a.download=filename; a.click();
 }
 
+// Entity names come straight from text: drop surrounding punctuation ("Northgate Holdings," → "Northgate Holdings")
+// but keep the final dot of an initialism ("U.S."). nameKey: case/punctuation-only variants share one key.
+function cleanName(s) {
+  s = String(s??'').replace(/\s+/g,' ').trim();
+  const t = s.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,'');
+  return /\p{Lu}\.\p{Lu}$/u.test(t) && s.includes(t+'.') ? t+'.' : t;
+}
+function nameKey(s) { return cleanName(s).toLowerCase().replace(/[.'’]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim(); }
+// Single words the NLP passes pick up that are never entities on their own. Dated events ("March 3") are unaffected.
+const NON_ENTITIES = new Set(('january february march april may june july august september october november december '+
+  'monday tuesday wednesday thursday friday saturday sunday according however meanwhile moreover furthermore '+
+  'additionally also later earlier yesterday today tomorrow after before during although though while since '+
+  'despite instead therefore thus nevertheless').split(' '));
+
 // ══════════════════════════════════════════════════════
-//  CO-REFERENCE RESOLUTION (lightweight, browser JS)
-//  Resolves pronouns → most recent named antecedent
+//  CO-REFERENCE RESOLUTION (conservative, browser JS)
+//  A sentence-initial He/She → the one compatible person
+//  named in the previous sentence. Anything else is left alone.
 // ══════════════════════════════════════════════════════
 function resolveCoref(text) {
   if (typeof nlp === 'undefined') return text;
-  // Tokenize into sentences
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g) || [text];
   const resolved = [];
-  let lastPerson = null;
-  let lastOrg = null;
-
-  // Pronoun maps
-  const personPronouns = /\b(he|him|his|she|her|hers|they|them|their|theirs)\b/gi;
-  const orgPronouns    = /\b(it|its|they|them|their)\b/gi;
+  let prev = []; // people named in the previous sentence: {name, gender}
 
   for (const sent of sentences) {
     let s = sent;
-
-    // Find named entities in this sentence to update antecedents
-    const doc = nlp(sent);
-    const people = doc.people().out('array');
-    const orgs   = doc.organizations().out('array');
-    if (people.length) lastPerson = people[people.length-1];
-    if (orgs.length)   lastOrg    = orgs[orgs.length-1];
-
-    // Replace person pronouns if we have an antecedent
-    if (lastPerson) {
-      s = s.replace(/\b(He|Him|His|She|Her|Hers)\b/g, lastPerson);
-      s = s.replace(/\b(he|him|his|she|her|hers)\b/g, lastPerson.toLowerCase());
+    // Possessives, objects, mid-sentence pronouns, they/it: unchanged. Two candidates: unchanged.
+    const m = s.match(/^(\s*)(He|She)\b/);
+    if (m) {
+      const clash = m[2]==='He' ? 'female' : 'male';
+      const cands = new Map(prev.filter(p => p.gender !== clash).map(p => [nameKey(p.name), p.name]));
+      if (cands.size === 1) s = m[1] + [...cands.values()][0] + s.slice(m[0].length);
     }
-    // Replace org pronouns
-    if (lastOrg) {
-      s = s.replace(/\b(It|Its)\b/g, lastOrg);
-      s = s.replace(/\b(it|its)\b/g, lastOrg.toLowerCase());
-    }
+    prev = nlp(s).people().json()
+      .map(j => ({name: cleanName(j.text).replace(/['’]s$/,''), gender: j.person?.presumed_gender}))
+      .filter(p => nameKey(p.name));
     resolved.push(s);
   }
-  return resolved.join(' ');
+  return resolved.join('');
 }
 
 // ══════════════════════════════════════════════════════
@@ -821,10 +822,10 @@ function extractRelationships(text, entityMap) {
   // Co-occurrence fallback: entities mentioned in same sentence → weak link
   const sentences = text.split(/[.!?]+/);
   for (const sent of sentences) {
-    const present = entityNames.filter(name => {
-      const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i');
+    const present = [...new Set(entityNames.filter(name => {
+      const re = new RegExp(`(?<![\\p{L}\\p{N}])${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?![\\p{L}\\p{N}])`, 'iu');
       return re.test(sent);
-    }).map(name => entityMap[name]).filter(Boolean);
+    }).map(name => entityMap[name]).filter(Boolean))];
 
     for (let i=0;i<present.length;i++) {
       for (let j=i+1;j<present.length;j++) {
@@ -840,17 +841,19 @@ function extractRelationships(text, entityMap) {
 }
 
 function findEntityId(fragment, names, entityMap) {
-  fragment = fragment.trim().toLowerCase();
-  // Exact match
-  for (const name of names) {
-    if (name.toLowerCase() === fragment) return entityMap[name];
-  }
-  // Partial match (fragment appears in entity name or vice versa)
-  for (const name of names) {
-    const n = name.toLowerCase();
-    if (n.includes(fragment) || fragment.includes(n)) return entityMap[name];
-  }
-  return null;
+  const f = nameKey(fragment);
+  if (!f) return null;
+  // Exact match (case/punctuation-insensitive)
+  const exact = names.find(n => nameKey(n) === f);
+  if (exact) return entityMap[exact];
+  // Partial match on whole tokens only, never on short spans ("US" ≠ "USS Cole", "John" ≠ "Johnson").
+  // A hit inside a longer hit is the same mention ("Hale" inside "Marcus Hale"). Still ambiguous → no match.
+  const within = (a, b) => (' '+b+' ').includes(' '+a+' ');
+  let hits = names.map(n => [nameKey(n), entityMap[n]])
+    .filter(([n]) => (n.length >= 3 && within(n, f)) || (f.length >= 3 && within(f, n)));
+  hits = hits.filter(([n]) => !hits.some(([o]) => o !== n && within(n, o)));
+  const ids = new Set(hits.map(h => h[1]));
+  return ids.size === 1 ? [...ids][0] : null;
 }
 
 // ══════════════════════════════════════════════════════
@@ -867,17 +870,21 @@ function extractEntities(rawText) {
   // Step 2: NLP extraction with compromise.js
   const doc = nlp(resolvedText);
 
-  // Count mentions of each entity type
+  // Count mentions per entity, keyed by nameKey so "Hale," / "hale" / "Hale" are one entity
   const counts = {};
   const typeMap = {};
+  const display = {};
 
   function addEntity(name, type) {
-    name = name.trim().replace(/\s+/g,' ');
-    if (name.length < 2 || name.length > 60) return;
-    // Skip pure stopwords
-    if (/^(the|a|an|of|in|on|at|by|for|with|this|that|these|those|it|its)$/i.test(name)) return;
-    counts[name] = (counts[name]||0)+1;
-    if (!typeMap[name]) typeMap[name] = type;
+    name = cleanName(name);
+    const key = nameKey(name);
+    if (name.length < 2 || name.length > 60 || !key) return;
+    // Skip names made only of stopwords and non-entity words ("According", "June", "In June")
+    if (key.split(' ').every(w => NON_ENTITIES.has(w) || /^(the|a|an|of|in|on|at|by|for|with|this|that|these|those|it|its)$/.test(w))) return;
+    counts[key] = (counts[key]||0)+1;
+    if (!typeMap[key]) typeMap[key] = type;
+    // Show the first capitalised form ("Elena Varga" over "elena varga")
+    if (!display[key] || (display[key]===display[key].toLowerCase() && name!==name.toLowerCase())) display[key] = name;
   }
 
   // People
@@ -910,7 +917,7 @@ function extractEntities(rawText) {
   let m;
   while ((m = capsPattern.exec(resolvedText)) !== null) {
     const w = m[1];
-    if (!counts[w] && w.length > 3 && !/^(The|A|An|In|On|At|By|For|With|This|That|He|She|It|They|We|I|But|And|Or)$/.test(w)) {
+    if (!counts[nameKey(w)] && w.length > 3 && !/^(The|A|An|In|On|At|By|For|With|This|That|He|She|It|They|We|I|But|And|Or)$/.test(w)) {
       addEntity(w, 'other');
     }
   }
@@ -921,18 +928,23 @@ function extractEntities(rawText) {
   const maxEntities = parseInt(document.getElementById('max-entities').value)||30;
 
   // Filter by mention count and build node list
-  const entityMap = {}; // name → id
+  const entityMap = {}; // display name → id
+  const usedIds = new Set();
   const nodes = Object.entries(counts)
     .filter(([,c]) => c >= minMentions)
     .sort((a,b) => b[1]-a[1])
     .slice(0, maxEntities)
-    .map(([name, mentions]) => {
-      const id = slugify(name) || `entity_${Object.keys(entityMap).length}`;
+    .map(([key, mentions]) => {
+      const name = display[key];
+      // Distinct entities never share an id (slugs can collide: non-Latin names, 40-char truncation)
+      let id = slugify(name) || 'entity';
+      if (usedIds.has(id)) { let i = 2; while (usedIds.has(`${id}_${i}`)) i++; id = `${id}_${i}`; }
+      usedIds.add(id);
       entityMap[name] = id;
       return {
         id,
         name,
-        type: typeMap[name]||'other',
+        type: typeMap[key]||'other',
         mentions,
         description: `Mentioned ${mentions} time${mentions!==1?'s':''} in the source text.`,
         confidence: mentions >= 3 ? 'high' : mentions === 2 ? 'medium' : 'low',
@@ -953,7 +965,7 @@ function extractEntities(rawText) {
       pairBest[key] = l;
     }
   }
-  const links = Object.values(pairBest);
+  const links = Object.values(pairBest).filter(l => l.source !== l.target); // never a self-loop
 
   // Recompute degree
   const deg = {};

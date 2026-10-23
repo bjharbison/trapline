@@ -12,6 +12,7 @@ bash tests/run_all.sh
 | Test | What it covers |
 |---|---|
 | `test_offline_smoke.py` | The offline engine runs end to end on a fictional fixture. Its entities and links are compared to `baseline_offline.json`. |
+| `test_extraction_units.py` | Offline extraction functions called directly: whole-token entity matching, conservative pronoun resolution, name cleaning and the non-entity stoplist, no self-loops, and no false merges. |
 | `test_providers.py` | Every LLM provider preset, using mocked APIs. Covers URLs, headers, body quirks, model listing, key errors, and that the key is never stored. |
 | `test_egress.py` | The panel warns whenever the endpoint isn't on this machine. |
 
