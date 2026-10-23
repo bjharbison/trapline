@@ -176,8 +176,9 @@ textarea.inp{resize:none;line-height:1.65}
             </div>
             <div id="conn-status" style="font-size:.57rem;color:#3A5A72;margin-top:5px;min-height:14px"></div>
           </div>
+          <div id="egress-notice" class="notice notice-info" style="font-size:.56rem"></div>
           <div class="notice notice-warn" style="font-size:.56rem">
-            Small models (≤4B) are slow on CPU — expect 30–120s per analysis. Results are lower quality than a frontier model but fully private.
+            Small local models (≤4B) are slow on CPU — expect 30–120s per analysis, with lower quality than a frontier model.
           </div>
         </div>
 
@@ -394,6 +395,28 @@ function pickModel(name){
   if(!name) return;                          // ignore the placeholder row
   document.getElementById('llm-model').value=name;
   saveSettings();
+}
+
+// Tell the user, in the panel, whether the endpoint is this machine or somewhere else.
+// Anything that isn't loopback counts as "leaves this machine" — including a Tailscale
+// or LAN host, which is still another computer.
+function isLoopback(host) {
+  return host==='localhost' || host.endsWith('.localhost') || host==='[::1]' || /^127\./.test(host);
+}
+
+function updateEgressNotice() {
+  const el = document.getElementById('egress-notice');
+  let host = '';
+  try { host = new URL(document.getElementById('llm-url').value.trim()).hostname; } catch {}
+  if (host && isLoopback(host)) {
+    el.className = 'notice notice-info';
+    el.textContent = 'Local endpoint — your text goes only to a model on this machine.';
+  } else {
+    el.className = 'notice notice-warn';
+    el.textContent = host
+      ? `⚠ Your text leaves this machine — it will be sent to ${host}. Don't use this for material that must stay local.`
+      : '⚠ Endpoint URL is not valid. Use a full URL, e.g. http://localhost:11434/v1/chat/completions';
+  }
 }
 
 function saveSettings() {
@@ -1435,9 +1458,11 @@ document.addEventListener('click',e=>{
 // Persist LLM settings on change
 document.getElementById('llm-url').addEventListener('change', saveSettings);
 document.getElementById('llm-model').addEventListener('change', saveSettings);
+document.getElementById('llm-url').addEventListener('input', updateEgressNotice);
 
 // Load saved settings on startup
 loadSettings();
+updateEgressNotice();
 </script>
 </body>
 </html>

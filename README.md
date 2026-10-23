@@ -82,7 +82,7 @@ Trapline is built to keep sensitive material on your machine. What leaves your d
 
 - **Offline mode (default):** rule-based extraction runs entirely in your browser. Your text goes nowhere.
 - **Local LLM:** if you point Trapline at a model running on your own machine (Ollama, LM Studio, llama.cpp), your text goes only to that local endpoint and no further.
-- **Remote LLM (your choice):** if you configure a remote provider such as OpenAI, your text is sent to that provider. This is the only mode in which your text leaves your machine, and it only happens if you set it up.
+- **Remote LLM (your choice):** if you configure a remote provider such as OpenAI, your text is sent to that provider. This is the only mode in which your text leaves your machine, and it only happens if you set it up. Whenever the endpoint isn't on your own machine, the config panel shows a warning naming the host your text will go to. That includes a model on another computer on your LAN or Tailscale network.
 - **Stored settings:** your engine choice, endpoint URL, and model name are saved in the browser's `localStorage` for convenience. An API key, if you enter one, is used only for live requests and is not written to disk — it lives in the page only while the tab is open.
 
 ---
