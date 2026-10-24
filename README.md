@@ -4,8 +4,9 @@
 
 > Turn unstructured text into an interactive relationship graph for OSINT and investigative analysis — locally and privately, in your browser.
 
-<!-- TODO: add a screenshot or demo GIF here once Phase 1 assets are ready -->
-<!-- ![Trapline demo](docs/demo.gif) -->
+![Trapline demo: pasting a fictional report, analysing it, opening the most central entity, and checking duplicate suggestions](docs/demo.gif)
+
+*Offline engine (the default), run on the fictional [investigative report](examples/investigative-report.txt). No model, no key, nothing sent anywhere.*
 
 ---
 
@@ -64,7 +65,7 @@ Then set the endpoint to `http://localhost:11434/v1/chat/completions` in Traplin
 
 That's the whole setup. No build step, no server, and — in offline mode — nothing to install at all.
 
-<!-- TODO: link to sample inputs once added, e.g. examples/sample-report.txt -->
+Want something to try first? [`examples/`](examples/) has three short, fictional sample inputs: a news investigation, a threat-intel bulletin, and a sanctions notice.
 
 ---
 
@@ -75,6 +76,33 @@ That's the whole setup. No build step, no server, and — in offline mode — no
 - **Refine** — review flagged anomalies and merge duplicate entities to clean up extraction noise.
 - **Arrange** — double-click nodes to pin them in place.
 - **Export** — send the network to CSV, Obsidian, or JSON for downstream work.
+
+---
+
+## How it works
+
+Everything below runs inside the page. The only network call Trapline makes with your text is the LLM request, and only when you choose that engine.
+
+```mermaid
+flowchart LR
+    A[Pasted text or an uploaded txt, csv or pdf] --> B{Engine}
+    B -->|default| C[Offline: compromise.js entities, relation patterns, same-sentence co-occurrence]
+    B -->|optional| D[LLM: any OpenAI-compatible chat endpoint, first 5,000 characters]
+    D --> E[Parse and sanitize the JSON reply]
+    C --> F[SNA metrics]
+    E --> F
+    F --> G[Flags and duplicate suggestions]
+    G --> H[D3 force graph, entity list, detail panel]
+    H -.->|merge a duplicate| F
+    H --> I[Export: CSV, Markdown, JSON]
+```
+
+- **Input.** Uploaded files are read in the browser and never uploaded. CSV rows are turned into labelled lines of text. PDFs go through pdf.js, which pulls out the text layer only.
+- **Offline engine.** A cautious pronoun pass first: a sentence-initial *He* or *She* is replaced only when exactly one matching person was named in the sentence before. compromise.js then tags people, organizations, places and other noun phrases, and a few regexes add dates and capitalized names it missed. Relationships come from verb patterns such as *founded*, *works for* or *met with*. Entities named in the same sentence get a weaker co-occurrence link.
+- **LLM engine.** The text goes to the endpoint in the config panel with a prompt asking for strict JSON. The reply is cleaned up before use: code fences are stripped, cut-off JSON is salvaged where possible, types and confidence values are limited to known values, and links to unknown entities or self-links are dropped.
+- **Metrics.** Degree, betweenness, closeness, eigenvector, PageRank and clustering are computed in plain JavaScript. They are recomputed after every merge.
+- **Review.** Flags point out likely brokers, isolated entities, low-confidence entities and graphs that are mostly co-occurrence. Duplicate suggestions are only suggestions. Nothing merges until you click Merge.
+- **Display.** Extracted names and labels are treated as untrusted and escaped before they reach the page.
 
 ---
 
