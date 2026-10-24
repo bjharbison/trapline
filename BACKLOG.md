@@ -26,6 +26,9 @@ Features considered but not in the current v1 build. Captured so they aren't los
 
 ## UI
 
+> **Shipped in v1.x:** phone layout (panel above the graph, full-width canvas, Export reachable) and a ⋯ menu on every entity card (pin / edit / delete).
+
+- **Ignore list.** A field for names to drop before extraction (a report's publisher, a recurring boilerplate org). Human-supplied only — never an "author detection" heuristic, which would misfire on the reports where the publisher is a subject. Add when it bites a second time; Delete covers it today.
 - **Detail panel covers the zoom controls.** While an entity is selected, the panel sits over the +/−/FIT buttons; close the panel or use the scroll wheel to zoom. Move the controls left of the panel when it is open.
 
 > **Shipped in v1.x (no longer backlog):**
