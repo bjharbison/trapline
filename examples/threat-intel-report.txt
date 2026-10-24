@@ -1,0 +1,37 @@
+THREAT INTELLIGENCE BULLETIN — FICTIONAL EXAMPLE
+Subject: Activity cluster COPPER LANTERN targeting regional logistics firms
+Distribution: example only
+
+Summary
+
+Between June and September, analysts at Northfold Security tracked a phishing and data-theft campaign we call COPPER LANTERN. The campaign targeted freight forwarders and port operators in Gdansk, Rotterdam and Hamburg. We assess with moderate confidence that the operators are financially motivated and sell stolen shipping manifests to third parties.
+
+Key findings
+
+COPPER LANTERN targeted Halvard Freight, a forwarding company headquartered in Gdansk, in early June. The intrusion began with a phishing email that impersonated Tessaly Customs Brokers, a regular business partner. An employee in the Halvard Freight finance team opened the attachment, which installed a loader we track as GLASSWICK.
+
+GLASSWICK contacted infrastructure registered through Brightmoor Hosting, a small provider based in Chisinau. Brightmoor Hosting has appeared in two earlier campaigns. We have no evidence that the provider knowingly supports the operators, but its abuse desk did not respond to takedown requests.
+
+The same infrastructure was later used to target Kestrel Port Services in Rotterdam. Kestrel Port Services detected the intrusion within a day. Its incident lead, Annika Voorhees, partnered with Northfold Security to share indicators, which allowed us to link the two intrusions.
+
+Attribution
+
+Northfold Security analyst Tomasz Wierzba identified a reused developer handle, "fenwright," inside GLASSWICK samples. The same handle appears on a criminal forum, where a seller offers "port manifests, fresh, EU." Forum posts by fenwright mention a partner called "Ilsabet," who appears to handle payments.
+
+Payments for the stolen data were routed to Varnholt Exchange, a cryptocurrency exchange registered in Tbilisi. Varnholt Exchange is run by Gregor Selin, according to its corporate filing. We assess with low confidence that Varnholt Exchange is a cash-out point rather than a participant.
+
+In August, COPPER LANTERN targeted Saltmere Shipping in Hamburg using a new lure that impersonated the Elbquay Harbour Office, a port agency. Saltmere Shipping blocked the email at the gateway. Northfold Security notified Saltmere Shipping and shared the indicators with the regional CERT.
+
+Impact
+
+At Halvard Freight, the operators exfiltrated roughly four months of shipping manifests, including consignee names and container routes. Halvard Freight's security director, Piotr Lesniak, said the company reset all finance team credentials and has engaged outside counsel.
+
+Recommendations
+
+Block the GLASSWICK indicators in the appendix. Treat unexpected invoices from customs brokers with suspicion, and confirm by phone. Review outbound connections to Brightmoor Hosting address ranges. Monitor for manifest data appearing on criminal forums.
+
+Confidence and limitations
+
+This bulletin relies on two confirmed intrusions and one blocked attempt. The link between fenwright and Ilsabet rests on forum posts and could be wrong. Attribution to a specific person is not possible from current evidence.
+
+This bulletin is fiction. COPPER LANTERN, GLASSWICK, every company and every person named here are invented for Trapline's examples. Indicators are omitted on purpose.
