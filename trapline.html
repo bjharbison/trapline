@@ -93,6 +93,11 @@ textarea.inp{resize:none;line-height:1.65}
 #llm-config .cfg-row:last-child{margin-bottom:0}
 #llm-config .cfg-label{font-size:.54rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3A5A72}
 #llm-config select.inp{padding:6px 10px;cursor:pointer}
+.key-help-btn{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:4px;padding:0;border-radius:50%;border:1px solid #2A4A60;background:none;color:#4A7090;font-size:.55rem;font-weight:700;cursor:pointer;vertical-align:middle;transition:all .15s}
+.key-help-btn:hover,.key-help-btn[aria-expanded="true"]{border-color:#00C8FF;color:#00C8FF}
+#key-help{margin:3px 0 0}
+#key-help ol{margin:4px 0 5px 16px;padding:0}
+#key-help a{color:#00C8FF}
 
 /* ENGINE TOGGLE */
 .engine-bar{display:flex;gap:5px;margin-bottom:10px}
@@ -179,7 +184,10 @@ textarea.inp{resize:none;line-height:1.65}
                 style="font-size:.63rem;margin-top:5px;display:none"></select>
             </div>
             <div class="cfg-row">
-              <div class="cfg-label">API Key <span id="llm-key-hint" style="color:#2A4060;font-weight:400">(optional — leave blank for Ollama)</span></div>
+              <div class="cfg-label">API Key <span id="llm-key-hint" style="color:#2A4060;font-weight:400">(optional — leave blank for Ollama)</span>
+                <button type="button" id="key-help-btn" class="key-help-btn" onclick="toggleKeyHelp()" aria-expanded="false" aria-controls="key-help"
+                  title="How do I get an API key? Click for steps">?</button></div>
+              <div id="key-help" class="notice notice-info" style="display:none;font-size:.56rem"></div>
               <input type="password" id="llm-key" class="inp" placeholder="sk-… or blank for local"
                 autocomplete="off" style="font-size:.63rem" />
             </div>
@@ -535,6 +543,7 @@ function updateEgressNotice() {
   document.getElementById('llm-key').placeholder = needsKey ? 'paste your API key' : 'sk-… or blank for local';
   document.getElementById('llm-model').placeholder = (PROVIDERS[prov]||PROVIDERS.custom).hint;
   document.getElementById('small-model-notice').style.display = prov==='local' ? 'block' : 'none';
+  renderKeyHelp(prov);
   if (host && isLoopback(host)) {
     el.className = 'notice notice-info';
     el.textContent = 'Local endpoint — your text goes only to a model on this machine.';
@@ -544,6 +553,48 @@ function updateEgressNotice() {
       ? `⚠ Your text leaves this machine — it will be sent to ${host}. Don't use this for material that must stay local.`
       : '⚠ Endpoint URL is not valid. Use a full URL, e.g. http://localhost:11434/v1/chat/completions';
   }
+}
+
+// "How do I get a key?" — per provider. Plain links; nothing is fetched or sent.
+const KEY_HELP = {
+  local:      {steps:["No key needed. Ollama, LM Studio and llama.cpp run on your own machine. Leave the key blank."]},
+  openai:     {site:'platform.openai.com', url:'https://platform.openai.com/api-keys', steps:[
+                'Sign up or sign in at platform.openai.com.', 'Open API keys and click "Create new secret key".',
+                'Copy the key (it starts with sk-). It is shown only once.'],
+               note:'API use is billed separately from a ChatGPT subscription. If requests fail with a quota error, add credit under Billing.'},
+  anthropic:  {site:'console.anthropic.com', url:'https://console.anthropic.com/settings/keys', steps:[
+                'Sign up or sign in at console.anthropic.com.', 'Go to Settings → API keys and click "Create Key".',
+                'Copy the key (it starts with sk-ant-). It is shown only once.'],
+               note:'Requests need a payment method or credit on the account. A Claude.ai subscription does not cover API use.'},
+  gemini:     {site:'aistudio.google.com', url:'https://aistudio.google.com/app/apikey', steps:[
+                'Sign in to Google AI Studio with a Google account.', 'Click "Get API key", then "Create API key".',
+                'Copy the key (it starts with AIza).'],
+               note:'There is a free tier with low rate limits. Heavier use needs billing on the linked Google Cloud project.'},
+  openrouter: {site:'openrouter.ai', url:'https://openrouter.ai/keys', steps:[
+                'Sign up or sign in at openrouter.ai.', 'Open Keys and create a new key.', 'Copy the key.'],
+               note:'One key reaches models from many companies. Paid models need credits on your account.'},
+  xai:        {site:'console.x.ai', url:'https://console.x.ai', steps:[
+                'Sign up or sign in at console.x.ai.', 'Open API Keys and click "Create API Key".',
+                'Copy the key (it starts with xai-). It is shown only once.'],
+               note:'Requests need credits or a payment method on the account.'},
+  custom:     {steps:["Your server decides whether it needs a key. Check its docs or ask whoever runs it. Many self-hosted servers need none."]},
+};
+function toggleKeyHelp() {
+  const el=document.getElementById('key-help'), btn=document.getElementById('key-help-btn');
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none'; btn.setAttribute('aria-expanded',open);
+}
+function renderKeyHelp(prov) {
+  const h=KEY_HELP[prov]||KEY_HELP.custom, el=document.getElementById('key-help');
+  el.textContent='';
+  const add=(tag,text,parent=el)=>{const n=document.createElement(tag); if(text)n.textContent=text; parent.appendChild(n); return n;};
+  if(h.url){
+    const p=add('div','Get a key: ');
+    const a=add('a',h.site,p); a.href=h.url; a.target='_blank'; a.rel='noopener noreferrer';
+  }
+  if(h.steps.length>1){const ol=add('ol'); h.steps.forEach(t=>add('li',t,ol));} else add('div',h.steps[0]);
+  if(h.note) add('div',h.note);
+  if(h.url) add('div','Paste it into the box below. Trapline uses it only in this tab and never saves it. Your text goes to this provider, which charges for usage.').style.marginTop='5px';
 }
 
 function saveSettings() {
