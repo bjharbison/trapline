@@ -35,6 +35,7 @@ The point is to make link analysis usable without a link-analysis toolchain. If 
 - **Edit entities** — fix what extraction got wrong: rename an entity, change its type, or delete it (with its connections) from the detail panel. Metrics, flags, and duplicate suggestions recompute after every edit. Renaming onto an existing entity's name (ignoring case and punctuation) is refused, never merged; when the Dupes tab can combine the two, the message says so.
 - **Pin and arrange** — double-click nodes to pin them and lay the network out the way you want.
 - **Exports** — CSV (nodes + edges, with SNA metrics), Obsidian-ready Markdown, raw JSON, and GEXF 1.3 for [Gephi](https://gephi.org/) (nodes carry type, confidence, mentions, description, and every SNA metric; edges carry the relationship label, strength as weight, and the evidence sentences).
+- **Works on a phone** — the panel stacks above the graph, and every entity card has a ⋯ menu to pin, edit, or delete it without opening the detail panel.
 - **Keyboard shortcuts** — press `?` for the full list: `/` to search, `F` to fit, `P` to pin, `E` to edit, `Esc` to close, `Ctrl+Enter` to analyse.
 
 ---
@@ -81,7 +82,7 @@ Want something to try first? [`examples/`](examples/) has three short, fictional
 - **Read the graph** — larger nodes are more central; use the SNA metrics to sort by betweenness or PageRank to find the actors that hold the network together.
 - **Check a link** — click any connection on the canvas, or a row in an entity's Connections list, to read the sentence it came from before you rely on it.
 - **Find a node** — type in the search box to dim everything else; press Enter to zoom to the best match. `?` shows every shortcut.
-- **Refine** — review flagged anomalies, merge duplicate entities, and click an entity then ✎ to rename, retype, or delete it.
+- **Refine** — review flagged anomalies, merge duplicate entities, and click an entity then ✎ (or its ⋯ menu in the list) to rename, retype, or delete it. A report's own publisher will show up as an entity when the text names it; delete it like any other.
 - **Arrange** — double-click nodes to pin them in place.
 - **Export** — send the network to CSV, Obsidian, JSON, or Gephi (GEXF) for downstream work.
 
