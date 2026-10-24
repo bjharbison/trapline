@@ -407,7 +407,8 @@ function llmBody(url, model, messages, maxTokens) {
 function llmMaxTokens(url) { return providerFromUrl(url)==='local' ? LOCAL_MAX_TOKENS : CLOUD_MAX_TOKENS; }
 
 // The provider's own error message is far more useful than a bare status code.
-async function llmError(r) {
+// An unknown model ("Opus" instead of an exact id) gets a pointer to List Models.
+async function llmError(r, model) {
   const b = await r.text().catch(()=> '');
   let msg = '';
   try {
@@ -415,6 +416,11 @@ async function llmError(r) {
     msg = e?.error?.message || e?.message || '';
   } catch {}
   if (r.status===401 || r.status===403) return new Error(`HTTP ${r.status}: key rejected${msg ? ' — '+msg : ''}`);
+  const said = msg || b;
+  // Not-found wording is checked on the raw body: Anthropic puts it only in the type ("not_found_error").
+  if (model && (r.status===400 || r.status===404) && /not[ _]found|does not exist|not a valid model|invalid model|unknown model|no such model/i.test(b)
+      && (/model/i.test(b) || b.includes(model)))
+    return new Error(`Model "${model.slice(0,60)}" not found. Click List Models and pick an exact ID. (${r.status}: ${said.slice(0,100)})`);
   return new Error(`HTTP ${r.status}: ${(msg || b).slice(0,150)}`);
 }
 
@@ -446,7 +452,7 @@ async function testConnection() {
     // 256, not 5: reasoning models spend tokens before they answer
     const body=llmBody(url, model, [{role:'user',content:'Reply with the single word: OK'}], 256);
     const r=await fetch(url,{method:'POST',headers:llmHeaders(url,key),body:JSON.stringify(body)}).catch(e=>{throw llmNetworkHint(e,url);});
-    if(!r.ok) throw await llmError(r);
+    if(!r.ok) throw await llmError(r, model);
     const d=await r.json();
     const reply=d.choices?.[0]?.message?.content||d.content?.[0]?.text||'';
     status.style.color='#00FF9D';
@@ -620,7 +626,7 @@ async function callLLM(text, maxEntities) {
         {role:'user',   content: buildLLMPrompt(text, maxEntities)}
       ], llmMaxTokens(url)))
     }).catch(e=>{ throw llmNetworkHint(e, url); });
-    if (!r.ok) throw await llmError(r);
+    if (!r.ok) throw await llmError(r, model);
     const data = await r.json();
     const raw  = data.choices?.[0]?.message?.content
               || data.content?.[0]?.text

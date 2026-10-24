@@ -14,6 +14,7 @@ bash tests/run_all.sh
 | `test_offline_smoke.py` | The offline engine runs end to end on a fictional fixture. Its entities and links are compared to `baseline_offline.json`. |
 | `test_extraction_units.py` | Offline extraction functions called directly: whole-token entity matching, conservative pronoun resolution, name cleaning and the non-entity stoplist, no self-loops, and no false merges. |
 | `test_providers.py` | Every LLM provider preset, using mocked APIs. Covers URLs, headers, body quirks, model listing, key errors, and that the key is never stored. |
+| `test_model_hint.py` | An unknown model name ("Opus") gets a pointer to List Models, for every provider's not-found error shape, in Test Connection and Analyse. Wrong-URL 404s, other 400s and bad keys keep their own message. |
 | `test_egress.py` | The panel warns whenever the endpoint isn't on this machine. |
 | `test_view.py` | The graph fits itself to the view once when the layout settles. Clicking or pinning a node afterwards keeps the user's zoom. |
 | `test_gexf.py` | GEXF export through the real menu, parsed with Python's XML parser: structure, counts, every node attribute, edge label/weight, and hostile strings (markup, quotes, XML-illegal characters) round-tripping as text. |
