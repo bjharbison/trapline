@@ -28,18 +28,17 @@ Features considered but not in the current v1 build. Captured so they aren't los
 
 - **Detail panel covers the zoom controls.** While an entity is selected, the panel sits over the +/−/FIT buttons; close the panel or use the scroll wheel to zoom. Move the controls left of the panel when it is open.
 
+> **Shipped in v1.x (no longer backlog):**
+> - **GEXF export** for Gephi: GEXF 1.3, undirected (matching how the SNA metrics are computed), node attributes for type, confidence, mentions, description, degree and every SNA metric; edges with relationship label (also as `kind`, so Gephi keeps parallel edges apart) and strength as weight. Strings are XML-escaped and XML-illegal characters are stripped.
+> - **Manual entity editing** from the detail panel: rename, retype, delete. Ids stay stable; metrics, flags and dupes recompute; pins survive. A rename onto another entity's name (ignoring case and punctuation) is refused, and points to Dupes merge only when Dupes groups the pair.
+
 > **Shipped in v1 (no longer backlog):** output escaping at all `innerHTML` sinks (`esc()`), plus CSV formula-injection neutralization, RFC 4180 quote-doubling, and YAML frontmatter escaping (`csvCell()` and the Markdown export). These were security hardening, not features — they live in `trapline.html`.
 
 ---
 
 ## Strong candidates
 
-### Gephi / GEXF export
-**What:** Export the network as a `.gexf` file for analysis in Gephi.
-**Why it helps:** Gephi is the standard tool analysts move to for heavy layout and deeper SNA. Real audience fit.
-**The catch:** None.
-**Effort:** Low — a GEXF serializer already exists in the React `trapline_v2.html` prototype; mostly a port.
-**Recommendation:** Add. Good first post-launch enhancement to v1.
+_None right now. GEXF export shipped; see Shipped above._
 
 ---
 
@@ -68,10 +67,10 @@ Features considered but not in the current v1 build. Captured so they aren't los
 
 ## Worth considering (later)
 
-### Manual entity editing
-**What:** Rename, re-type, or hand-merge entities directly in the UI.
-**Why it helps:** Makes imperfect automated extraction trustworthy — the analyst can correct what the engine got wrong. Pairs naturally with the existing duplicate-merge tool.
-**Recommendation:** Reasonable candidate even for a v1.x point release.
+### Hand-merge any two entities
+**What:** Merge two entities the Dupes tab didn't group (different types, or names that aren't substrings of each other, like "Elena Varga" / "E. Varga").
+**Why it helps:** Rename/retype/delete shipped, and a rename onto an existing name is refused on purpose. This is the remaining piece of manual editing.
+**Recommendation:** v1.x. Keep it an explicit two-entity pick, never name-similarity automation.
 
 ### Keyboard shortcuts + help modal
 **What:** Hotkeys for common actions; an in-app help/reference panel.
