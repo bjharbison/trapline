@@ -1581,7 +1581,7 @@ function renderGraph() {
     node.attr('transform',d=>`translate(${d.x},${d.y})`);
   });
   svg.on('click',()=>closeDetail());
-  sim.on('end',()=>zoomFit());
+  sim.on('end',()=>{sim.on('end',null);zoomFit();}); // fit once; drags and pins reheat the sim but keep the user's zoom
 }
 
 function updatePins() {

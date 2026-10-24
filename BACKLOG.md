@@ -21,6 +21,12 @@ Features considered but not in the current v1 build. Captured so they aren't los
 - **Surname-only relationship fragments.** If no "Varga" node survives the mention/entity filters, a typed relationship whose subject is just "Varga" is wired to the only matching full name ("Elena Varga"). Single-candidate whole-token matching is intended ("John" → "John Smith"), but it is an inference, not a fact in the text.
 - **Name-inside-name co-occurrence.** "Okafor" co-occurs with "Daniel Okafor" in the same sentence because it matches inside the longer mention, which inflates centrality for partial-name nodes. Skip matches whose span falls inside a longer matched name.
 - **Leading "The" still splits entities** ("The FBI" / "FBI"). The stoplist also drops a real one-word "May" (Theresa May referred to by surname).
+- **Passive voice reverses typed links.** "The fund was founded in 2019 by Teodora Vass" yields *fund → founded → Teodora Vass*. The relation patterns read subject-verb-object only; a "was \<verb\> by" check would flip these. Seen on `examples/investigative-report.txt`.
+- **Headings bleed into entities.** Title and heading lines have no sentence-ending punctuation, so they merge with the next sentence and produce names like "FICTIONAL EXAMPLE Subject". Treating line breaks as sentence boundaries would fix most of it.
+
+## UI
+
+- **Detail panel covers the zoom controls.** While an entity is selected, the panel sits over the +/−/FIT buttons; close the panel or use the scroll wheel to zoom. Move the controls left of the panel when it is open.
 
 > **Shipped in v1.x (no longer backlog):**
 > - **GEXF export** for Gephi: GEXF 1.3, undirected (matching how the SNA metrics are computed), node attributes for type, confidence, mentions, description, degree and every SNA metric; edges with relationship label (also as `kind`, so Gephi keeps parallel edges apart) and strength as weight. Strings are XML-escaped and XML-illegal characters are stripped.
