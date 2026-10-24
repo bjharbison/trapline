@@ -1408,9 +1408,18 @@ function parseCSV(text){
 }
 
 // PDF → text via pdf.js. Text-based PDFs only — scanned/image docs yield nothing (no OCR).
+// The offline build (build/offline.py) inlines pdf.js's worker as a text/plain block; it is served to
+// pdf.js from a blob: URL so no request leaves the machine. The CDN build fetches the matching worker.
+let pdfWorkerUrl=null;
+function pdfWorkerSrc(){
+  const inl=document.getElementById('pdf-worker-src');
+  if(!inl) return 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  if(!pdfWorkerUrl) pdfWorkerUrl=URL.createObjectURL(new Blob([inl.textContent],{type:'text/javascript'}));
+  return pdfWorkerUrl;
+}
 async function pdfToText(file){
   if(typeof pdfjsLib==='undefined') throw new Error('PDF library still loading — wait a moment and try again');
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  pdfjsLib.GlobalWorkerOptions.workerSrc=pdfWorkerSrc();
   const status=document.getElementById('file-status');
   const buf=await file.arrayBuffer();
   const pdf=await pdfjsLib.getDocument({data:buf}).promise;

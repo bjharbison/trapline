@@ -23,6 +23,7 @@ bash tests/run_all.sh
 | `test_provenance.py` | Every offline link carries real sentences of the analyzed text; the LLM parser keeps only quotes that appear in the source and falls back to a sentence naming both entities; link click / connection row open the link detail; hostile evidence and labels render as text; CSV, GEXF and Markdown carry the evidence. |
 | `test_search_shortcuts.py` | Search and type filter dim the canvas, Enter zooms to the best match, Esc clears; every shortcut (`?` `/` `F` `+` `-` `0` `P` `E` `Esc` `Ctrl+Enter`) works outside inputs and single keys never fire while typing. |
 | `test_mobile.py` | Phone viewport: panel stacks above a full-width graph, Export is reachable, legend hidden; the ⋯ card menu pins, edits and deletes (with confirm) without the detail panel. |
+| `test_offline_build.py` | `build/offline.py` from a vendor dir with stub pdf.js files containing `</script>`; the result has no network src/href, runs extraction with every non-file request aborted, and serves the pdf.js worker from a `blob:` URL. (Real pdf.js is verified on a machine that can reach the CDN.) |
 | `test_editing.py` | Rename, retype and delete from the detail panel: stable ids, name-collision refusal (no silent merge), recomputed metrics/flags/dupes, pins kept, and a hostile name rendered as text in every panel. |
 
 **Changing the baseline.** If an extraction change is intended, run `python3 tests/test_offline_smoke.py --update`. Commit the new baseline, and paste the +/- diff from the run before into the PR so the change can be reviewed.
