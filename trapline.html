@@ -55,6 +55,7 @@ textarea.inp{resize:none;line-height:1.65}
 .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
 #detail{position:absolute;right:0;top:0;bottom:0;width:272px;background:#0C1118;border-left:1px solid #1A2A38;padding:14px 13px;overflow-y:auto;z-index:40;animation:slideIn .2s ease}
+@media (max-width:640px){#detail{position:fixed;top:50px;bottom:46px;left:0;right:0;width:auto;border-left:none;z-index:150}#toast{white-space:normal!important;width:max-content;max-width:calc(100vw - 32px);text-align:center}}
 .detail-label{font-size:.54rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#3A5A72;margin-bottom:6px}
 .score-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
 .score-bar{height:3px;background:#1A2A38;border-radius:2px;overflow:hidden;margin-top:2px;margin-bottom:5px}
@@ -154,6 +155,18 @@ textarea.inp{resize:none;line-height:1.65}
         <div id="llm-section" style="display:none">
           <div id="llm-config">
             <div class="cfg-row">
+              <div class="cfg-label">Provider</div>
+              <select id="llm-provider" class="inp" onchange="pickProvider(this.value)" style="font-size:.63rem;font-family:inherit">
+                <option value="local">Local — Ollama / LM Studio (private)</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="xai">xAI (Grok)</option>
+                <option value="custom">Custom OpenAI-compatible</option>
+              </select>
+            </div>
+            <div class="cfg-row">
               <div class="cfg-label">Endpoint URL</div>
               <input type="text" id="llm-url" class="inp" value="http://localhost:11434/v1/chat/completions"
                 placeholder="http://localhost:11434/v1/chat/completions" style="font-size:.63rem" />
@@ -166,9 +179,9 @@ textarea.inp{resize:none;line-height:1.65}
                 style="font-size:.63rem;margin-top:5px;display:none"></select>
             </div>
             <div class="cfg-row">
-              <div class="cfg-label">API Key <span style="color:#2A4060;font-weight:400">(optional — leave blank for Ollama)</span></div>
+              <div class="cfg-label">API Key <span id="llm-key-hint" style="color:#2A4060;font-weight:400">(optional — leave blank for Ollama)</span></div>
               <input type="password" id="llm-key" class="inp" placeholder="sk-… or blank for local"
-                style="font-size:.63rem" />
+                autocomplete="off" style="font-size:.63rem" />
             </div>
             <div style="display:flex;gap:6px;margin-top:6px">
               <button class="btn-sm" onclick="testConnection()" id="btn-test" style="flex:1">⚡ Test Connection</button>
@@ -176,8 +189,9 @@ textarea.inp{resize:none;line-height:1.65}
             </div>
             <div id="conn-status" style="font-size:.57rem;color:#3A5A72;margin-top:5px;min-height:14px"></div>
           </div>
-          <div class="notice notice-warn" style="font-size:.56rem">
-            Small models (≤4B) are slow on CPU — expect 30–120s per analysis. Results are lower quality than a frontier model but fully private.
+          <div id="egress-notice" class="notice notice-info" style="font-size:.56rem"></div>
+          <div id="small-model-notice" class="notice notice-warn" style="font-size:.56rem">
+            Small local models (≤4B) are slow on CPU — expect 30–120s per analysis, with lower quality than a frontier model.
           </div>
         </div>
 
@@ -280,6 +294,7 @@ textarea.inp{resize:none;line-height:1.65}
               <button class="export-item" onclick="doExport('csv')"><span>📊</span><div><div style="font-weight:600;font-size:.65rem">CSV (nodes + edges)</div><div style="font-size:.56rem;color:#3A5A72">Two files with SNA metrics</div></div></button>
               <button class="export-item" onclick="doExport('md')"><span>📝</span><div><div style="font-weight:600;font-size:.65rem">Markdown</div><div style="font-size:.56rem;color:#3A5A72">Obsidian-ready .md</div></div></button>
               <button class="export-item" onclick="doExport('json')"><span>⬡</span><div><div style="font-weight:600;font-size:.65rem">JSON</div><div style="font-size:.56rem;color:#3A5A72">Raw graph data</div></div></button>
+              <button class="export-item" onclick="doExport('gexf')"><span>◈</span><div><div style="font-weight:600;font-size:.65rem">GEXF (Gephi)</div><div style="font-size:.56rem;color:#3A5A72">GEXF 1.3 with SNA metrics</div></div></button>
             </div>
             <button class="btn-sm" id="btn-export" onclick="toggleExport()" style="display:none">⬇ Export ▴</button>
           </div>
@@ -301,7 +316,7 @@ const CONF_COLORS = {high:'#00FF9D',medium:'#FFB830',low:'#FF6B35'};
 
 let state = {
   analysis: null, sna: null, flags: [], dupes: [],
-  selectedNode: null, pinnedNodes: {},
+  selectedNode: null, pinnedNodes: {}, editing: false,
   tab: 'entities', search: '', filterType: 'all',
   showExport: false,
   engine: 'local',
@@ -325,6 +340,95 @@ function setEngine(e) {
 }
 
 // ══════════════════════════════════════════════════════
+//  LLM PROVIDERS
+//  Every provider is reached through its OpenAI-compatible chat-completions
+//  endpoint, so there is one request path. Presets only fill the URL; the
+//  per-provider quirks below are chosen from the URL's host, so a hand-edited
+//  URL still gets the right headers and body.
+// ══════════════════════════════════════════════════════
+const PROVIDERS = {
+  local:      {url:'http://localhost:11434/v1/chat/completions',                          hint:'qwen2.5:3b · llama3.2:3b · gemma3:4b'},
+  openai:     {url:'https://api.openai.com/v1/chat/completions',                          hint:'click List Models', host:'api.openai.com'},
+  anthropic:  {url:'https://api.anthropic.com/v1/chat/completions',                       hint:'click List Models', host:'api.anthropic.com'},
+  gemini:     {url:'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', hint:'click List Models', host:'generativelanguage.googleapis.com'},
+  openrouter: {url:'https://openrouter.ai/api/v1/chat/completions',                       hint:'click List Models', host:'openrouter.ai'},
+  xai:        {url:'https://api.x.ai/v1/chat/completions',                                hint:'click List Models', host:'api.x.ai'},
+  custom:     {url:'',                                                                    hint:'model name your endpoint expects'},
+};
+const LOCAL_MAX_TOKENS = 3000;   // small local models: keep output bounded
+const CLOUD_MAX_TOKENS = 16000;  // hosted models may spend part of this on hidden reasoning
+
+function urlHost(url) { try { return new URL(url).hostname; } catch { return ''; } }
+
+function providerFromUrl(url) {
+  const host = urlHost(url);
+  if (host && isLoopback(host)) return 'local';
+  for (const [k,p] of Object.entries(PROVIDERS)) if (p.host && p.host===host) return k;
+  return 'custom';
+}
+
+function pickProvider(p) {
+  const urlEl = document.getElementById('llm-url');
+  if (PROVIDERS[p].url) urlEl.value = PROVIDERS[p].url;
+  else { urlEl.value = ''; urlEl.focus(); }
+  document.getElementById('llm-model').value = '';
+  document.getElementById('llm-model-select').style.display = 'none';
+  document.getElementById('llm-key').value = '';   // never carry one provider's key to another
+  document.getElementById('conn-status').textContent = '';
+  updateEgressNotice();
+  saveSettings();
+}
+
+// Headers for a request. Anthropic needs an explicit opt-in header before it
+// answers a browser request, and its model list wants x-api-key, not Bearer.
+function llmHeaders(url, key, forModelList) {
+  const h = {'Content-Type':'application/json'};
+  const p = providerFromUrl(url);
+  if (p==='anthropic') {
+    h['anthropic-dangerous-direct-browser-access'] = 'true';
+    if (forModelList && key) { h['x-api-key'] = key; h['anthropic-version'] = '2023-06-01'; return h; }
+  }
+  if (key) h['Authorization'] = `Bearer ${key}`;
+  return h;
+}
+
+// Request body. OpenAI's reasoning models reject max_tokens and temperature;
+// current Claude models reject temperature below 1. Everyone else keeps the
+// low temperature, which helps small models stay on the JSON format.
+function llmBody(url, model, messages, maxTokens) {
+  const p = providerFromUrl(url);
+  const body = {model, messages};
+  if (p==='openai') { body.max_completion_tokens = maxTokens; return body; }
+  body.max_tokens = maxTokens;
+  if (p!=='anthropic') body.temperature = 0.1;
+  return body;
+}
+
+function llmMaxTokens(url) { return providerFromUrl(url)==='local' ? LOCAL_MAX_TOKENS : CLOUD_MAX_TOKENS; }
+
+// The provider's own error message is far more useful than a bare status code.
+async function llmError(r) {
+  const b = await r.text().catch(()=> '');
+  let msg = '';
+  try {
+    const j = JSON.parse(b), e = Array.isArray(j) ? j[0] : j;   // Gemini sometimes wraps errors in an array
+    msg = e?.error?.message || e?.message || '';
+  } catch {}
+  if (r.status===401 || r.status===403) return new Error(`HTTP ${r.status}: key rejected${msg ? ' — '+msg : ''}`);
+  return new Error(`HTTP ${r.status}: ${(msg || b).slice(0,150)}`);
+}
+
+// A browser reports a blocked cross-origin call as a bare "Failed to fetch".
+function llmNetworkHint(e, url) {
+  if (e instanceof TypeError) {
+    return new Error(providerFromUrl(url)==='local'
+      ? 'Could not reach the endpoint — is the model server running? Ollama also needs OLLAMA_ORIGINS set to allow this page.'
+      : 'Could not reach the endpoint — check the URL and your connection. The provider may also block requests from a browser page.');
+  }
+  return e;
+}
+
+// ══════════════════════════════════════════════════════
 //  LLM CONNECTION UTILS
 // ══════════════════════════════════════════════════════
 async function testConnection() {
@@ -336,14 +440,17 @@ async function testConnection() {
   btn.textContent='⏳ Testing…'; btn.disabled=true;
   status.style.color='#4A7090'; status.textContent='Connecting…';
   try {
-    const headers={'Content-Type':'application/json'};
-    if(key) headers['Authorization']=`Bearer ${key}`;
-    const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model,max_tokens:5,messages:[{role:'user',content:'Reply with the single word: OK'}]})});
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    if(!url)   throw new Error('Enter an endpoint URL');
+    if(!model) throw new Error('Enter a model name, or click List Models');
+    if(!key && providerFromUrl(url)!=='local' && providerFromUrl(url)!=='custom') throw new Error('This provider needs an API key');
+    // 256, not 5: reasoning models spend tokens before they answer
+    const body=llmBody(url, model, [{role:'user',content:'Reply with the single word: OK'}], 256);
+    const r=await fetch(url,{method:'POST',headers:llmHeaders(url,key),body:JSON.stringify(body)}).catch(e=>{throw llmNetworkHint(e,url);});
+    if(!r.ok) throw await llmError(r);
     const d=await r.json();
-    const reply=d.choices?.[0]?.message?.content||d.content?.[0]?.text||'?';
+    const reply=d.choices?.[0]?.message?.content||d.content?.[0]?.text||'';
     status.style.color='#00FF9D';
-    status.textContent=`✓ Connected · replied: "${reply.trim().slice(0,40)}"`;
+    status.textContent= reply ? `✓ Connected · replied: "${reply.trim().slice(0,40)}"` : '✓ Connected · key and model accepted';
     saveSettings();
   } catch(e) {
     status.style.color='#FF6B35';
@@ -356,14 +463,18 @@ async function fetchModels() {
   const url=document.getElementById('llm-url').value.trim();
   const key=document.getElementById('llm-key').value.trim();
   const status=document.getElementById('conn-status');
-  const base=url.replace(/\/v1\/chat\/completions.*$/,'');
+  // …/chat/completions → …/models works for every provider's layout (incl. Gemini's /v1beta/openai/)
+  const modelsUrl=url.replace(/\/chat\/completions\/?(\?.*)?$/,'/models');
   try {
-    const headers={};
-    if(key) headers['Authorization']=`Bearer ${key}`;
-    const r=await fetch(base+'/v1/models',{headers});
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    if(modelsUrl===url) throw new Error('Endpoint URL should end in /chat/completions');
+    const headers=llmHeaders(url,key,true); delete headers['Content-Type'];
+    const r=await fetch(modelsUrl,{headers}).catch(e=>{throw llmNetworkHint(e,url);});
+    if(!r.ok) throw await llmError(r);
     const d=await r.json();
-    const models=(d.data||d.models||[]).map(m=>m.id||m.name).filter(Boolean);
+    // Drop models that can't do chat (embeddings, speech, images, moderation)
+    const models=(d.data||d.models||[]).map(m=>m.id||m.name).filter(Boolean)
+      .filter(m=>!/embed|whisper|tts|dall-e|moderation|transcribe|imagen|veo|-image|realtime|audio/i.test(m))
+      .sort();
     const sel=document.getElementById('llm-model-select');
     const cur=document.getElementById('llm-model').value.trim();
     sel.innerHTML='';
@@ -394,6 +505,39 @@ function pickModel(name){
   if(!name) return;                          // ignore the placeholder row
   document.getElementById('llm-model').value=name;
   saveSettings();
+}
+
+// Tell the user, in the panel, whether the endpoint is this machine or somewhere else.
+// Anything that isn't loopback counts as "leaves this machine" — including a Tailscale
+// or LAN host, which is still another computer.
+function isLoopback(host) {
+  return host==='localhost' || host.endsWith('.localhost') || host==='[::1]' || /^127\./.test(host);
+}
+
+function updateEgressNotice() {
+  const el = document.getElementById('egress-notice');
+  const url  = document.getElementById('llm-url').value.trim();
+  const host = urlHost(url);
+  // Keep the rest of the panel in step with the URL (typed, picked, or restored)
+  const prov = providerFromUrl(url);
+  const sel  = document.getElementById('llm-provider');
+  if (sel.value!==prov && !(sel.value==='custom' && !url)) sel.value = prov;
+  const needsKey = prov!=='local' && prov!=='custom';
+  document.getElementById('llm-key-hint').textContent = needsKey
+    ? '(required — used for this tab only, never saved)'
+    : prov==='local' ? '(optional — leave blank for Ollama)' : '(if your endpoint needs one — never saved)';
+  document.getElementById('llm-key').placeholder = needsKey ? 'paste your API key' : 'sk-… or blank for local';
+  document.getElementById('llm-model').placeholder = (PROVIDERS[prov]||PROVIDERS.custom).hint;
+  document.getElementById('small-model-notice').style.display = prov==='local' ? 'block' : 'none';
+  if (host && isLoopback(host)) {
+    el.className = 'notice notice-info';
+    el.textContent = 'Local endpoint — your text goes only to a model on this machine.';
+  } else {
+    el.className = 'notice notice-warn';
+    el.textContent = host
+      ? `⚠ Your text leaves this machine — it will be sent to ${host}. Don't use this for material that must stay local.`
+      : '⚠ Endpoint URL is not valid. Use a full URL, e.g. http://localhost:11434/v1/chat/completions';
+  }
 }
 
 function saveSettings() {
@@ -448,9 +592,10 @@ async function callLLM(text, maxEntities) {
   const key   = document.getElementById('llm-key').value.trim();
   if (!url)   throw new Error('Enter an endpoint URL in the LLM config');
   if (!model) throw new Error('Enter a model name in the LLM config');
+  const prov = providerFromUrl(url);
+  if (!key && prov!=='local' && prov!=='custom') throw new Error('This provider needs an API key — enter it in the LLM config');
 
-  const headers = {'Content-Type':'application/json'};
-  if (key) headers['Authorization'] = `Bearer ${key}`;
+  const headers = llmHeaders(url, key);
 
   // Animated progress — small models take 30–120s
   const progressEl = document.getElementById('llm-progress');
@@ -470,17 +615,12 @@ async function callLLM(text, maxEntities) {
   try {
     const r = await fetch(url, {
       method:'POST', headers,
-      body: JSON.stringify({
-        model,
-        max_tokens: 3000,
-        temperature: 0.1,
-        messages: [
-          {role:'system', content:'You are a JSON-only extraction engine. Output only valid JSON. No markdown. No explanation.'},
-          {role:'user',   content: buildLLMPrompt(text, maxEntities)}
-        ]
-      })
-    });
-    if (!r.ok) { const b=await r.text().catch(()=>''); throw new Error(`HTTP ${r.status}: ${b.slice(0,150)}`); }
+      body: JSON.stringify(llmBody(url, model, [
+        {role:'system', content:'You are a JSON-only extraction engine. Output only valid JSON. No markdown. No explanation.'},
+        {role:'user',   content: buildLLMPrompt(text, maxEntities)}
+      ], llmMaxTokens(url)))
+    }).catch(e=>{ throw llmNetworkHint(e, url); });
+    if (!r.ok) throw await llmError(r);
     const data = await r.json();
     const raw  = data.choices?.[0]?.message?.content
               || data.content?.[0]?.text
@@ -530,6 +670,9 @@ function parseLLMResponse(raw) {
     mentions: parseInt(n.mentions)||1,
     description: n.description||'',
   }));
+  // Distinct nodes never share an id (two names can slug alike, ids are cut at 40 chars); links keep the first.
+  const seen=new Set();
+  data.nodes.forEach(n=>{let id=n.id||'entity',i=2;while(seen.has(id))id=`${n.id||'entity'}_${i++}`;n.id=id;seen.add(id);});
 
   const ids=new Set(data.nodes.map(n=>n.id));
   // Sanitize links
@@ -550,7 +693,7 @@ function parseLLMResponse(raw) {
   data.id='llm_'+Date.now();
   data.source='LLM · '+document.getElementById('llm-model').value.trim();
   if(!data.title) data.title='LLM Analysis';
-  if(!data.summary) data.summary=`Extracted ${data.nodes.length} entities via local LLM.`;
+  if(!data.summary) data.summary=`Extracted ${data.nodes.length} entities via LLM.`;
   return data;
 }
 
@@ -593,45 +736,48 @@ function dl(content, filename, mime='text/plain') {
   a.download=filename; a.click();
 }
 
+// Entity names come straight from text: drop surrounding punctuation ("Northgate Holdings," → "Northgate Holdings")
+// but keep the final dot of an initialism ("U.S."). nameKey: case/punctuation-only variants share one key
+// (an apostrophe splits tokens, so "Varga's" never collides with "Vargas").
+function cleanName(s) {
+  s = String(s??'').normalize('NFC').replace(/\s+/g,' ').trim();
+  const t = s.replace(/^[^\p{L}\p{M}\p{N}]+|[^\p{L}\p{M}\p{N}]+$/gu,'');
+  return /\p{Lu}\.\p{Lu}$/u.test(t) && s.includes(t+'.') ? t+'.' : t;
+}
+function nameKey(s) { return cleanName(s).toLowerCase().replace(/\./g,'').replace(/[^\p{L}\p{M}\p{N}]+/gu,' ').trim(); }
+const FILLER = /^(the|a|an|of|in|on|at|by|for|with|this|that|these|those|it|its|and|or|but|to|from|as)$/;
+// Single words the NLP passes pick up that are never entities on their own. Dated events ("March 3") are unaffected.
+const NON_ENTITIES = new Set(('january february march april may june july august september october november december '+
+  'monday tuesday wednesday thursday friday saturday sunday according however meanwhile moreover furthermore '+
+  'additionally also later earlier yesterday today tomorrow after before during although though while since '+
+  'despite instead therefore thus nevertheless').split(' '));
+
 // ══════════════════════════════════════════════════════
-//  CO-REFERENCE RESOLUTION (lightweight, browser JS)
-//  Resolves pronouns → most recent named antecedent
+//  CO-REFERENCE RESOLUTION (conservative, browser JS)
+//  A sentence-initial He/She → the one compatible person
+//  named in the previous sentence. Anything else is left alone.
 // ══════════════════════════════════════════════════════
 function resolveCoref(text) {
   if (typeof nlp === 'undefined') return text;
-  // Tokenize into sentences
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g) || [text];
   const resolved = [];
-  let lastPerson = null;
-  let lastOrg = null;
-
-  // Pronoun maps
-  const personPronouns = /\b(he|him|his|she|her|hers|they|them|their|theirs)\b/gi;
-  const orgPronouns    = /\b(it|its|they|them|their)\b/gi;
+  let prev = []; // people named in the previous sentence: {name, gender}
 
   for (const sent of sentences) {
     let s = sent;
-
-    // Find named entities in this sentence to update antecedents
-    const doc = nlp(sent);
-    const people = doc.people().out('array');
-    const orgs   = doc.organizations().out('array');
-    if (people.length) lastPerson = people[people.length-1];
-    if (orgs.length)   lastOrg    = orgs[orgs.length-1];
-
-    // Replace person pronouns if we have an antecedent
-    if (lastPerson) {
-      s = s.replace(/\b(He|Him|His|She|Her|Hers)\b/g, lastPerson);
-      s = s.replace(/\b(he|him|his|she|her|hers)\b/g, lastPerson.toLowerCase());
+    // Possessives, objects, mid-sentence pronouns, they/it: unchanged. Two candidates: unchanged.
+    const m = s.match(/^(\s*)(He|She)\b/);
+    if (m) {
+      const clash = m[2]==='He' ? 'female' : 'male';
+      const cands = new Map(prev.filter(p => p.gender !== clash).map(p => [nameKey(p.name), p.name]));
+      if (cands.size === 1) s = m[1] + [...cands.values()][0] + s.slice(m[0].length);
     }
-    // Replace org pronouns
-    if (lastOrg) {
-      s = s.replace(/\b(It|Its)\b/g, lastOrg);
-      s = s.replace(/\b(it|its)\b/g, lastOrg.toLowerCase());
-    }
+    prev = nlp(s).people().json()
+      .map(j => ({name: cleanName(j.text).replace(/['’]s$/,''), gender: j.person?.presumed_gender}))
+      .filter(p => nameKey(p.name));
     resolved.push(s);
   }
-  return resolved.join(' ');
+  return resolved.join('');
 }
 
 // ══════════════════════════════════════════════════════
@@ -683,10 +829,10 @@ function extractRelationships(text, entityMap) {
   // Co-occurrence fallback: entities mentioned in same sentence → weak link
   const sentences = text.split(/[.!?]+/);
   for (const sent of sentences) {
-    const present = entityNames.filter(name => {
-      const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i');
+    const present = [...new Set(entityNames.filter(name => {
+      const re = new RegExp(`(?<![\\p{L}\\p{N}])${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?![\\p{L}\\p{N}])`, 'iu');
       return re.test(sent);
-    }).map(name => entityMap[name]).filter(Boolean);
+    }).map(name => entityMap[name]).filter(Boolean))];
 
     for (let i=0;i<present.length;i++) {
       for (let j=i+1;j<present.length;j++) {
@@ -702,17 +848,21 @@ function extractRelationships(text, entityMap) {
 }
 
 function findEntityId(fragment, names, entityMap) {
-  fragment = fragment.trim().toLowerCase();
-  // Exact match
-  for (const name of names) {
-    if (name.toLowerCase() === fragment) return entityMap[name];
-  }
-  // Partial match (fragment appears in entity name or vice versa)
-  for (const name of names) {
-    const n = name.toLowerCase();
-    if (n.includes(fragment) || fragment.includes(n)) return entityMap[name];
-  }
-  return null;
+  const f = nameKey(fragment);
+  if (!f) return null;
+  // Exact match (case/punctuation-insensitive)
+  const exact = names.find(n => nameKey(n) === f);
+  if (exact) return entityMap[exact];
+  // Partial match on whole tokens only, never on short spans ("US" ≠ "USS Cole", "John" ≠ "Johnson").
+  // A hit inside a longer hit is the same mention ("Hale" inside "Marcus Hale"). Still ambiguous → no match.
+  // A fragment inside a longer name must carry a capitalised token and not be all filler ("and" ≠ "Bosnia and Herzegovina").
+  const within = (a, b) => (' '+b+' ').includes(' '+a+' ');
+  const named = f.length >= 3 && /\p{Lu}/u.test(fragment) && !f.split(' ').every(w => FILLER.test(w));
+  let hits = names.map(n => [nameKey(n), entityMap[n]])
+    .filter(([n]) => (n.length >= 3 && within(n, f)) || (named && within(f, n)));
+  hits = hits.filter(([n]) => !hits.some(([o]) => o !== n && within(n, o)));
+  const ids = new Set(hits.map(h => h[1]));
+  return ids.size === 1 ? [...ids][0] : null;
 }
 
 // ══════════════════════════════════════════════════════
@@ -729,17 +879,21 @@ function extractEntities(rawText) {
   // Step 2: NLP extraction with compromise.js
   const doc = nlp(resolvedText);
 
-  // Count mentions of each entity type
+  // Count mentions per entity, keyed by nameKey so "Hale," / "hale" / "Hale" are one entity
   const counts = {};
   const typeMap = {};
+  const display = {};
 
   function addEntity(name, type) {
-    name = name.trim().replace(/\s+/g,' ');
-    if (name.length < 2 || name.length > 60) return;
-    // Skip pure stopwords
-    if (/^(the|a|an|of|in|on|at|by|for|with|this|that|these|those|it|its)$/i.test(name)) return;
-    counts[name] = (counts[name]||0)+1;
-    if (!typeMap[name]) typeMap[name] = type;
+    name = cleanName(name);
+    const key = nameKey(name);
+    if (name.length < 2 || name.length > 60 || !key) return;
+    // Skip names made only of stopwords and non-entity words ("According", "June", "In June")
+    if (key.split(' ').every(w => NON_ENTITIES.has(w) || FILLER.test(w))) return;
+    counts[key] = (counts[key]||0)+1;
+    if (!typeMap[key]) typeMap[key] = type;
+    // Show the first capitalised form ("Elena Varga" over "elena varga")
+    if (!display[key] || (display[key]===display[key].toLowerCase() && name!==name.toLowerCase())) display[key] = name;
   }
 
   // People
@@ -772,7 +926,7 @@ function extractEntities(rawText) {
   let m;
   while ((m = capsPattern.exec(resolvedText)) !== null) {
     const w = m[1];
-    if (!counts[w] && w.length > 3 && !/^(The|A|An|In|On|At|By|For|With|This|That|He|She|It|They|We|I|But|And|Or)$/.test(w)) {
+    if (!counts[nameKey(w)] && w.length > 3 && !/^(The|A|An|In|On|At|By|For|With|This|That|He|She|It|They|We|I|But|And|Or)$/.test(w)) {
       addEntity(w, 'other');
     }
   }
@@ -783,18 +937,23 @@ function extractEntities(rawText) {
   const maxEntities = parseInt(document.getElementById('max-entities').value)||30;
 
   // Filter by mention count and build node list
-  const entityMap = {}; // name → id
+  const entityMap = {}; // display name → id
+  const usedIds = new Set();
   const nodes = Object.entries(counts)
     .filter(([,c]) => c >= minMentions)
     .sort((a,b) => b[1]-a[1])
     .slice(0, maxEntities)
-    .map(([name, mentions]) => {
-      const id = slugify(name) || `entity_${Object.keys(entityMap).length}`;
+    .map(([key, mentions]) => {
+      const name = display[key];
+      // Distinct entities never share an id (slugs can collide: non-Latin names, 40-char truncation)
+      let id = slugify(name) || 'entity';
+      if (usedIds.has(id)) { let i = 2; while (usedIds.has(`${id}_${i}`)) i++; id = `${id}_${i}`; }
+      usedIds.add(id);
       entityMap[name] = id;
       return {
         id,
         name,
-        type: typeMap[name]||'other',
+        type: typeMap[key]||'other',
         mentions,
         description: `Mentioned ${mentions} time${mentions!==1?'s':''} in the source text.`,
         confidence: mentions >= 3 ? 'high' : mentions === 2 ? 'medium' : 'low',
@@ -815,7 +974,7 @@ function extractEntities(rawText) {
       pairBest[key] = l;
     }
   }
-  const links = Object.values(pairBest);
+  const links = Object.values(pairBest).filter(l => l.source !== l.target); // never a self-loop
 
   // Recompute degree
   const deg = {};
@@ -1090,7 +1249,7 @@ async function runAnalysis() {
     const dupes  = findDupes(analysis.nodes);
 
     state.analysis=analysis; state.sna=sna; state.flags=flags; state.dupes=dupes;
-    state.selectedNode=null; state.pinnedNodes={};
+    state.selectedNode=null; state.pinnedNodes={}; state.editing=false;
 
     renderAll();
     setStatus('READY'); setStep('');
@@ -1230,23 +1389,74 @@ function mergeDupes(gi) {
       const s=typeof l.source==='object'?l.source.id:l.source, t=typeof l.target==='object'?l.target.id:l.target;
       return {...l,source:removeIds.has(s)?keep.id:s,target:removeIds.has(t)?keep.id:t};
     }).filter(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;return s!==t;});
-  const deg={};state.analysis.nodes.forEach(n=>(deg[n.id]=0));
-  state.analysis.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;deg[s]=(deg[s]||0)+1;deg[t]=(deg[t]||0)+1;});
-  state.analysis.nodes.forEach(n=>(n.degree=deg[n.id]||0));
-  state.sna=computeSNA(state.analysis.nodes,state.analysis.links);
-  state.flags=detectFlags(state.analysis.nodes,state.analysis.links,state.sna);
-  state.dupes=findDupes(state.analysis.nodes);
   if(state.selectedNode&&removeIds.has(state.selectedNode.id))state.selectedNode=null;
-  renderAll(); renderDetail();
+  refreshAfterEdit();
   toast(`Merged → ${keep.name}`);
+}
+
+// After any structural or name change: degrees, SNA, flags and dupes from scratch, then re-render.
+// Pins survive (renderGraph reads state.pinnedNodes); the selection is re-pointed at the live node.
+function refreshAfterEdit() {
+  const a=state.analysis, deg={};
+  a.nodes.forEach(n=>(deg[n.id]=0));
+  a.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;deg[s]=(deg[s]||0)+1;deg[t]=(deg[t]||0)+1;});
+  a.nodes.forEach(n=>(n.degree=deg[n.id]||0));
+  state.sna=computeSNA(a.nodes,a.links);
+  state.flags=detectFlags(a.nodes,a.links,state.sna);
+  state.dupes=findDupes(a.nodes);
+  Object.keys(state.pinnedNodes).forEach(id=>{if(!(id in deg))delete state.pinnedNodes[id];});
+  if(state.filterType!=='all'&&!a.nodes.some(n=>n.type===state.filterType))state.filterType='all';
+  if(state.selectedNode)state.selectedNode=a.nodes.find(n=>n.id===state.selectedNode.id)||null;
+  renderAll(); renderDetail();
+}
+
+// ══════════════════════════════════════════════════════
+//  MANUAL EDITING — rename / retype / delete from the detail panel.
+//  Ids never change. A rename onto an existing name is refused, never merged:
+//  merging stays an explicit Dupes action.
+// ══════════════════════════════════════════════════════
+function editTarget() { return state.analysis?.nodes.find(x=>x.id===state.selectedNode?.id); }
+function shortName(s) { return s.length>24?s.slice(0,23)+'…':s; }
+function toggleEdit() { state.editing=!state.editing; renderDetail(); if(state.editing)document.getElementById('edit-name')?.focus(); }
+function saveEntityEdit() {
+  const n=editTarget(); if(!n)return;
+  const name=document.getElementById('edit-name').value.normalize('NFC').replace(/\s+/g,' ').trim();
+  const type=document.getElementById('edit-type').value;
+  if(!name){toast('Name cannot be empty','err');return;}
+  if(!TYPE_COLORS[type])return;
+  const key=s=>nameKey(s)||s.toLowerCase();
+  // Only a changed name can clash, so retyping one of two same-named entities stays possible.
+  const clash=key(name)!==key(n.name)&&state.analysis.nodes.find(x=>x.id!==n.id&&key(x.name)===key(name));
+  if(clash){
+    // Point at Dupes only when Dupes really groups (or would group, once types match) the two.
+    const c=shortName(clash.name), pair=findDupes([clash,{...n,type:clash.type}]).length>0;
+    toast(!pair?`"${c}" exists — rename refused, no merge`:clash.type===n.type?`"${c}" exists — merge in Dupes`:`"${c}" exists — set type ${clash.type}, merge in Dupes`,'warn');
+    return;
+  }
+  state.editing=false;
+  if(name===n.name&&type===n.type){renderDetail();return;}
+  n.name=name; n.type=type;
+  refreshAfterEdit();
+  toast(`Saved ${shortName(name)}`);
+}
+function deleteEntity() {
+  const n=editTarget(); if(!n)return;
+  const a=state.analysis, touches=l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;return s===n.id||t===n.id;};
+  const k=a.links.filter(touches).length;
+  if(!confirm(`Delete "${n.name}" and its ${k} connection${k!==1?'s':''}? This cannot be undone.`))return;
+  a.nodes=a.nodes.filter(x=>x.id!==n.id);
+  a.links=a.links.filter(l=>!touches(l));
+  state.selectedNode=null; state.editing=false;
+  refreshAfterEdit();
+  toast(`Deleted ${shortName(n.name)}`);
 }
 
 // ══════════════════════════════════════════════════════
 //  NODE SELECTION + DETAIL
 // ══════════════════════════════════════════════════════
-function selectNode(n) { state.selectedNode=n; renderEntityList(); renderDetail(); }
+function selectNode(n) { if(state.selectedNode?.id!==n.id)state.editing=false; state.selectedNode=n; renderEntityList(); renderDetail(); }
 function selectNodeById(id) { const n=state.analysis?.nodes.find(x=>x.id===id); if(n){selectNode(n);setTab('entities');} }
-function closeDetail() { state.selectedNode=null; document.getElementById('detail').style.display='none'; renderEntityList(); }
+function closeDetail() { state.selectedNode=null; state.editing=false; document.getElementById('detail').style.display='none'; renderEntityList(); }
 function togglePin(nodeId) {
   if(state.pinnedNodes[nodeId]){delete state.pinnedNodes[nodeId];}
   else{const nd=d3g?.selectAll('g.node').filter(d=>d.id===nodeId).datum();state.pinnedNodes[nodeId]={x:nd?.x||0,y:nd?.y||0};}
@@ -1269,13 +1479,25 @@ function renderDetail() {
   function sBar(label,val,col){const pct=Math.min(100,Math.max(0,(val||0)*100));return`<div style="margin-bottom:4px"><div class="score-row"><span style="font-size:.57rem;color:#4A7090;font-weight:600">${label}</span><span style="font-size:.57rem;color:${col};font-weight:700">${(val||0).toFixed(3)}</span></div><div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${col}"></div></div></div>`;}
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-      <div style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:.53rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:${col}22;border:1px solid ${col}44;color:${col}">${n.type}</div>
+      <div style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:.53rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:${col}22;border:1px solid ${col}44;color:${col}">${esc(n.type)}</div>
       <div style="display:flex;gap:5px">
+        <button class="btn-sm ${state.editing?'active':''}" onclick="toggleEdit()" title="Edit entity">✎</button>
         <button class="btn-sm ${isPinned?'active':''}" onclick="togglePin('${n.id}')" style="${isPinned?'color:#FFB830;border-color:#FFB830':''}">📌</button>
         <button class="btn-sm" onclick="closeDetail()">✕</button>
       </div>
     </div>
-    <div style="font-family:'Oxanium',sans-serif;font-size:.94rem;font-weight:800;color:#C8E0EE;margin-bottom:7px;line-height:1.2">${esc(n.name)}</div>
+    ${state.editing?`<div style="background:#101820;border:1px solid #1A2A38;border-radius:9px;padding:9px 10px;margin-bottom:10px">
+      <div class="detail-label">Name</div>
+      <input id="edit-name" class="inp" value="${esc(n.name)}" maxlength="200" onkeydown="if(event.key==='Enter')saveEntityEdit();if(event.key==='Escape')toggleEdit()" style="margin-bottom:7px" />
+      <div class="detail-label">Type</div>
+      <select id="edit-type" class="inp" style="margin-bottom:8px">${Object.keys(TYPE_COLORS).map(t=>`<option value="${t}"${t===n.type?' selected':''}>${t}</option>`).join('')}</select>
+      <div style="display:flex;gap:5px">
+        <button class="btn-sm active" id="edit-save" onclick="saveEntityEdit()">Save</button>
+        <button class="btn-sm" onclick="toggleEdit()">Cancel</button>
+        <button class="btn-sm" id="edit-delete" onclick="deleteEntity()" style="margin-left:auto;color:#FF6B35;border-color:rgba(255,107,53,.4)">Delete</button>
+      </div>
+      <div style="font-size:.54rem;color:#3A5A72;margin-top:6px;line-height:1.6">To combine two entities, use the Dupes tab.</div>
+    </div>`:`<div style="font-family:'Oxanium',sans-serif;font-size:.94rem;font-weight:800;color:#C8E0EE;margin-bottom:7px;line-height:1.2">${esc(n.name)}</div>`}
     <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
       <span style="font-size:.54rem;color:#C8E0EE;background:#1A2A38;border-radius:3px;padding:1px 6px">${n.mentions} mention${n.mentions!==1?'s':''}</span>
       <span style="font-size:.54rem;color:${n.confidence==='high'?'#00FF9D':n.confidence==='medium'?'#FFB830':'#FF6B35'};background:${n.confidence==='high'?'rgba(0,255,157,.1)':n.confidence==='medium'?'rgba(255,184,48,.1)':'rgba(255,107,53,.1)'};border-radius:3px;padding:1px 6px">${n.confidence} conf</span>
@@ -1359,7 +1581,7 @@ function renderGraph() {
     node.attr('transform',d=>`translate(${d.x},${d.y})`);
   });
   svg.on('click',()=>closeDetail());
-  sim.on('end',()=>zoomFit());
+  sim.on('end',()=>{sim.on('end',null);zoomFit();}); // fit once; drags and pins reheat the sim but keep the user's zoom
 }
 
 function updatePins() {
@@ -1419,9 +1641,46 @@ function doExport(type) {
   } else if(type==='json'){
     dl(JSON.stringify(a,null,2),`trapline_${slug}_${date}.json`,'application/json');
     toast('Downloading JSON…');
+  } else if(type==='gexf'){
+    dl(toGEXF(a,metrics,date),`trapline_${slug}_${date}.gexf`,'application/xml');
+    toast('Downloading GEXF…');
   }
   state.showExport=false;
   document.getElementById('export-menu').style.display='none';
+}
+
+// XML 1.0 text/attribute: drop code points XML forbids (control chars, lone surrogates, U+FFFE/FFFF),
+// escape the five specials, and keep tabs/newlines as char refs so attribute values survive parsing.
+function xmlEsc(s) {
+  return String(s??'').replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu,'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;')
+    .replace(/\t/g,'&#9;').replace(/\n/g,'&#10;').replace(/\r/g,'&#13;');
+}
+// GEXF 1.3 for Gephi. Undirected, matching the SNA metrics (computed on the undirected graph);
+// each edge keeps its source → target order and relationship label. kind = relationship, so Gephi keeps
+// parallel edges ("funds" and "co-occurs" between the same pair) apart instead of summing them.
+function toGEXF(a, metrics, date) {
+  const NUM=['degree_centrality','betweenness','closeness','eigenvector','pagerank','clustering'];
+  const ids=new Set(a.nodes.map(n=>n.id));
+  const attr=(id,type)=>`      <attribute id="${id}" title="${id}" type="${type}"/>\n`;
+  const val=(k,v)=>`<attvalue for="${k}" value="${xmlEsc(v)}"/>`;
+  let x=`<?xml version="1.0" encoding="UTF-8"?>\n<gexf xmlns="http://gexf.net/1.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://gexf.net/1.3 http://gexf.net/1.3/gexf.xsd" version="1.3">\n`;
+  x+=`  <meta lastmodifieddate="${date}">\n    <creator>Trapline</creator>\n    <description>${xmlEsc(a.title)}</description>\n  </meta>\n`;
+  x+=`  <graph mode="static" defaultedgetype="undirected">\n    <attributes class="node">\n`;
+  x+=attr('type','string')+attr('confidence','string')+attr('mentions','integer')+attr('description','string')+attr('degree','integer');
+  NUM.forEach(k=>x+=attr(k,'double'));
+  x+=`    </attributes>\n    <attributes class="edge">\n`+attr('confidence','string')+`    </attributes>\n    <nodes>\n`;
+  a.nodes.forEach(n=>{
+    const m=metrics[n.id]||{};
+    x+=`      <node id="${xmlEsc(n.id)}" label="${xmlEsc(n.name)}"><attvalues>${val('type',n.type)}${val('confidence',n.confidence)}${val('mentions',parseInt(n.mentions)||0)}${val('description',n.description)}${val('degree',parseInt(n.degree)||0)}${NUM.map(k=>val(k,typeof m[k]==='number'?m[k].toFixed(6):'0')).join('')}</attvalues></node>\n`;
+  });
+  x+=`    </nodes>\n    <edges>\n`;
+  a.links.forEach((l,i)=>{
+    const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;
+    if(!ids.has(s)||!ids.has(t))return;
+    x+=`      <edge id="e${i}" source="${xmlEsc(s)}" target="${xmlEsc(t)}" label="${xmlEsc(l.relationship)}" kind="${xmlEsc(l.relationship)}" weight="${Number(l.strength)||1}"><attvalues>${val('confidence',l.confidence)}</attvalues></edge>\n`;
+  });
+  return x+`    </edges>\n  </graph>\n</gexf>\n`;
 }
 
 // Close export on outside click
@@ -1435,9 +1694,11 @@ document.addEventListener('click',e=>{
 // Persist LLM settings on change
 document.getElementById('llm-url').addEventListener('change', saveSettings);
 document.getElementById('llm-model').addEventListener('change', saveSettings);
+document.getElementById('llm-url').addEventListener('input', updateEgressNotice);
 
 // Load saved settings on startup
 loadSettings();
+updateEgressNotice();
 </script>
 </body>
 </html>
