@@ -57,6 +57,17 @@ textarea.inp{resize:none;line-height:1.65}
 #detail{position:absolute;right:0;top:0;bottom:0;width:272px;background:#0C1118;border-left:1px solid #1A2A38;padding:14px 13px;overflow-y:auto;z-index:40;animation:slideIn .2s ease}
 @media (max-width:640px){#detail{position:fixed;top:50px;bottom:46px;left:0;right:0;width:auto;border-left:none;z-index:150}#toast{white-space:normal!important;width:max-content;max-width:calc(100vw - 32px);text-align:center}}
 .detail-label{font-size:.54rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#3A5A72;margin-bottom:6px}
+#help{position:fixed;inset:0;background:rgba(6,10,15,.78);z-index:8000;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s ease}
+#help-box{background:#0C1118;border:1px solid #1A2A38;border-radius:12px;padding:18px 20px;width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.7)}
+.help-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:640px){.help-cols{grid-template-columns:1fr}}
+.help-keys{border-collapse:collapse;width:100%;font-size:.6rem;color:#C8E0EE}
+.help-keys td{padding:4px 6px 4px 0;vertical-align:top;line-height:1.6}
+.help-keys td:first-child{white-space:nowrap;color:#4A7090;width:1%;padding-right:12px}
+kbd{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:.56rem;color:#00C8FF;background:#101820;border:1px solid #1A2A38;border-bottom-width:2px;border-radius:4px;padding:1px 5px;line-height:1.5}
+.conn-row{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:#101820;border:1px solid #1A2A38;border-radius:6px;margin-bottom:4px;cursor:pointer;transition:border-color .15s}
+.conn-row:hover{border-color:#00C8FF}
+blockquote.evidence{margin:0 0 6px;padding:7px 9px 7px 10px;border-left:2px solid #00C8FF;background:#101820;border-radius:0 6px 6px 0;font-size:.6rem;color:#9ABBD0;line-height:1.65;word-break:break-word}
 .score-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
 .score-bar{height:3px;background:#1A2A38;border-radius:2px;overflow:hidden;margin-top:2px;margin-bottom:5px}
 .score-fill{height:100%;border-radius:2px;transition:width .4s ease}
@@ -132,6 +143,7 @@ textarea.inp{resize:none;line-height:1.65}
       <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#FFB830;display:inline-block"></span>place</span>
       <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#FF6B35;display:inline-block"></span>event</span>
       <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#A855F7;display:inline-block"></span>other</span>
+      <button class="btn-sm" id="btn-help" onclick="toggleHelp()" title="Help and keyboard shortcuts (?)" style="padding:3px 8px;margin-left:4px">?</button>
     </div>
   </div>
 
@@ -247,7 +259,7 @@ textarea.inp{resize:none;line-height:1.65}
         <div id="entity-controls" style="display:none">
           <div class="search-wrap">
             <span class="ico">🔍</span>
-            <input type="text" class="inp search-inp" id="search-input" placeholder="Search entities…" oninput="filterEntities()" />
+            <input type="text" class="inp search-inp" id="search-input" placeholder="Search entities… ⏎ zooms to match" oninput="filterEntities()" onkeydown="searchKey(event)" />
           </div>
           <div style="display:flex;gap:3px;margin-bottom:5px;flex-wrap:wrap" id="type-filters"></div>
           <div id="entity-count" style="font-size:.54rem;color:#3A5A72;margin-bottom:6px"></div>
@@ -273,7 +285,7 @@ textarea.inp{resize:none;line-height:1.65}
         <div id="empty-state" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;pointer-events:none">
           <div style="font-size:2.8rem;opacity:.09">⬡</div>
           <div style="font-family:'Oxanium',sans-serif;font-size:1.1rem;font-weight:700;color:#3A5A72;letter-spacing:.12em">AWAITING INPUT</div>
-          <div style="font-size:.63rem;color:#3A5A72;text-align:center;line-height:1.8">Local NLP (compromise.js) or any LLM<br>Ollama · LM Studio · llama.cpp · OpenAI<br>Double-click nodes to pin</div>
+          <div style="font-size:.63rem;color:#3A5A72;text-align:center;line-height:1.8">Local NLP (compromise.js) or any LLM<br>Ollama · LM Studio · llama.cpp · OpenAI<br>Double-click nodes to pin · Press ? for help</div>
         </div>
 
         <svg id="graph-svg" style="width:100%;height:100%"></svg>
@@ -312,6 +324,46 @@ textarea.inp{resize:none;line-height:1.65}
   </div>
 </div>
 
+<div id="help" style="display:none" onclick="if(event.target===this)toggleHelp()">
+  <div id="help-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-family:'Oxanium',sans-serif;font-size:.9rem;font-weight:800;letter-spacing:.1em;color:#00C8FF">⬡ HELP</div>
+      <button class="btn-sm" onclick="toggleHelp()">✕</button>
+    </div>
+    <div class="help-cols">
+      <div>
+        <div class="detail-label">Keyboard</div>
+        <table class="help-keys">
+          <tr><td><kbd>?</kbd></td><td>Open / close this help</td></tr>
+          <tr><td><kbd>/</kbd></td><td>Jump to entity search</td></tr>
+          <tr><td><kbd>Enter</kbd></td><td>In search: zoom to the best match</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close panel, clear search</td></tr>
+          <tr><td><kbd>F</kbd></td><td>Fit the whole graph</td></tr>
+          <tr><td><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></td><td>Zoom in, out, reset</td></tr>
+          <tr><td><kbd>P</kbd></td><td>Pin / unpin the selected entity</td></tr>
+          <tr><td><kbd>E</kbd></td><td>Edit the selected entity</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Analyse (works inside the text box)</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="detail-label">Mouse</div>
+        <table class="help-keys">
+          <tr><td>Click node</td><td>Entity detail and SNA scores</td></tr>
+          <tr><td>Click link</td><td>Relationship and the sentence(s) it came from</td></tr>
+          <tr><td>Double-click</td><td>Pin a node in place</td></tr>
+          <tr><td>Drag · wheel</td><td>Move nodes · zoom</td></tr>
+        </table>
+        <div class="detail-label" style="margin-top:12px">Reading the graph</div>
+        <div style="font-size:.58rem;color:#4A7090;line-height:1.75">
+          Node size grows with connections and eigenvector score. A dashed ring marks lower-confidence entities.
+          Dashed links are weak: co-occurrence in one sentence, not a stated relationship.
+          Searching dims everything that doesn't match. Offline extraction is pattern-based; check the evidence before you trust a link.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" style="position:fixed;bottom:56px;left:50%;transform:translateX(-50%);background:#0C1118;border:1px solid #00FF9D;border-radius:8px;padding:9px 20px;font-size:.68rem;color:#00FF9D;box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:9000;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s"></div>
 
 <script>
@@ -324,7 +376,7 @@ const CONF_COLORS = {high:'#00FF9D',medium:'#FFB830',low:'#FF6B35'};
 
 let state = {
   analysis: null, sna: null, flags: [], dupes: [],
-  selectedNode: null, pinnedNodes: {}, editing: false,
+  selectedNode: null, selectedLink: null, pinnedNodes: {}, editing: false,
   tab: 'entities', search: '', filterType: 'all',
   showExport: false,
   engine: 'local',
@@ -628,7 +680,7 @@ Extract named entities and relationships from this text:
 ${text.slice(0, LLM_CHAR_CAP)}
 
 JSON format (output NOTHING else):
-{"title":"short title","summary":"one sentence","nodes":[{"id":"slug_id","name":"Full Name","type":"person","description":"brief role","mentions":2,"confidence":"high"}],"links":[{"source":"node_id","target":"node_id","relationship":"verb label","strength":2,"confidence":"high"}]}
+{"title":"short title","summary":"one sentence","nodes":[{"id":"slug_id","name":"Full Name","type":"person","description":"brief role","mentions":2,"confidence":"high"}],"links":[{"source":"node_id","target":"node_id","relationship":"verb label","strength":2,"confidence":"high","evidence":"the exact sentence from the text that states this relationship"}]}
 
 Rules (follow exactly):
 - Extract up to ${maxEntities} nodes
@@ -637,6 +689,7 @@ Rules (follow exactly):
 - strength: 1 | 2 | 3
 - id: lowercase, underscores only, no spaces
 - Every link source/target must be an existing node id
+- evidence: copy one sentence verbatim from the text. Never paraphrase or invent it.
 - Output JSON only. No text before or after.`;
 }
 
@@ -687,7 +740,7 @@ async function callLLM(text, maxEntities) {
     clearInterval(pInterval); fillEl.style.width='100%'; msgEl.textContent='Parsing…';
     await new Promise(r=>setTimeout(r,350));
     progressEl.style.display='none';
-    return parseLLMResponse(raw);
+    return parseLLMResponse(raw, text.slice(0, LLM_CHAR_CAP));
   } catch(e) {
     clearInterval(pInterval); progressEl.style.display='none';
     throw e;
@@ -697,7 +750,33 @@ async function callLLM(text, maxEntities) {
 // ══════════════════════════════════════════════════════
 //  LLM RESPONSE PARSER — handles messy small-model output
 // ══════════════════════════════════════════════════════
-function parseLLMResponse(raw) {
+const foldText = s => String(s??'').toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu,' ').trim();
+function verifyEvidence(given, sourceText, sName, tName) {
+  const out = [];
+  if (!sourceText) {
+    // No text to check against (e.g. loaded JSON): keep well-formed strings, nothing else.
+    (Array.isArray(given)?given:[given]).forEach(e=>{ if(typeof e==='string') { const l={}; addEvidence(l,e); if(l.evidence) out.push(...l.evidence); } });
+    return out.slice(0, EVIDENCE_MAX);
+  }
+  const folded = ' ' + foldText(sourceText) + ' ';
+  (Array.isArray(given)?given:[given]).forEach(e=>{
+    const f = typeof e==='string' ? foldText(e) : '';
+    if (f.length >= 12 && folded.includes(' '+f+' ')) { const l={evidence:out}; addEvidence(l, e); }
+  });
+  if (!out.length && sName && tName) {
+    const s=foldText(sName), t=foldText(tName);
+    for (const {text:sent} of splitSentences(sourceText)) {
+      const fs=' '+foldText(sent)+' ';
+      if (fs.includes(' '+s+' ') && fs.includes(' '+t+' ')) { const l={evidence:out}; addEvidence(l, sent); if(out.length>=EVIDENCE_MAX) break; }
+    }
+  }
+  return out;
+}
+
+// sourceText (optional): the text the model was given. Model-supplied evidence is kept only when it
+// actually appears there; otherwise a sentence naming both entities is looked up. A small model will
+// happily invent a quotation, and an invented quotation is worse than none.
+function parseLLMResponse(raw, sourceText) {
   let text = raw.trim();
   // Strip markdown fences
   text = text.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/g,'').trim();
@@ -732,6 +811,7 @@ function parseLLMResponse(raw) {
   data.nodes.forEach(n=>{let id=n.id||'entity',i=2;while(seen.has(id))id=`${n.id||'entity'}_${i++}`;n.id=id;seen.add(id);});
 
   const ids=new Set(data.nodes.map(n=>n.id));
+  const nameOf=Object.fromEntries(data.nodes.map(n=>[n.id,n.name]));
   // Sanitize links
   data.links = data.links.map(l=>({
     ...l,
@@ -739,6 +819,7 @@ function parseLLMResponse(raw) {
     target: typeof l.target==='object'?l.target?.id:l.target,
     strength: [1,2,3].includes(parseInt(l.strength))?parseInt(l.strength):2,
     confidence: ['high','medium','low'].includes(l.confidence)?l.confidence:'medium',
+    evidence: verifyEvidence(l.evidence, sourceText, nameOf[typeof l.source==='object'?l.source?.id:l.source], nameOf[typeof l.target==='object'?l.target?.id:l.target]),
   })).filter(l=>ids.has(l.source)&&ids.has(l.target)&&l.source!==l.target);
 
   // Degree
@@ -859,10 +940,34 @@ const RELATION_PATTERNS = [
   {re:/(\w[\w\s]+)\s+(?:signed|agreed|deal|treaty|accord)\s+with\s+(\w[\w\s]+)/gi, rel:'agreement with'},
 ];
 
+// Provenance: every link carries the sentence(s) it was extracted from, so an analyst can check
+// a connection against the source instead of taking the graph's word for it.
+const EVIDENCE_MAX = 3, EVIDENCE_CHARS = 320;
+function cleanEvidence(s) {
+  s = String(s??'').replace(/\s+/g,' ').trim();
+  return s.length > EVIDENCE_CHARS ? s.slice(0, EVIDENCE_CHARS-1) + '…' : s;
+}
+function addEvidence(link, sent) {
+  sent = cleanEvidence(sent);
+  if (!sent) return;
+  link.evidence = link.evidence || [];
+  if (link.evidence.length < EVIDENCE_MAX && !link.evidence.includes(sent)) link.evidence.push(sent);
+}
+// Sentences with their character offsets, so a regex match can be traced back to the sentence it sits in.
+// One cell/attribute for exports: sentences joined with " | ".
+function evidenceText(l) { return (Array.isArray(l.evidence)?l.evidence:[]).filter(e=>typeof e==='string').join(' | '); }
+function splitSentences(text) {
+  const out = []; let pos = 0;
+  for (const s of text.match(/[^.!?]+(?:[.!?]+|$)/g) || [text]) { out.push({text:s, start:pos, end:pos+s.length}); pos += s.length; }
+  return out;
+}
+
 function extractRelationships(text, entityMap) {
   const links = [];
-  const seen  = new Set();
+  const seen  = {};
   const entityNames = Object.keys(entityMap);
+  const sentences = splitSentences(text);
+  const sentenceAt = i => sentences.find(s => i >= s.start && i < s.end)?.text || '';
 
   for (const pat of RELATION_PATTERNS) {
     let m;
@@ -875,17 +980,17 @@ function extractRelationships(text, entityMap) {
       const tId = findEntityId(t, entityNames, entityMap);
       if (sId && tId && sId !== tId) {
         const key = [sId,tId].sort().join('|') + '|' + pat.rel;
-        if (!seen.has(key)) {
-          seen.add(key);
-          links.push({source:sId, target:tId, relationship:pat.rel, strength:2, confidence:'medium'});
+        if (!seen[key]) {
+          seen[key] = {source:sId, target:tId, relationship:pat.rel, strength:2, confidence:'medium', evidence:[]};
+          links.push(seen[key]);
         }
+        addEvidence(seen[key], sentenceAt(m.index));
       }
     }
   }
 
   // Co-occurrence fallback: entities mentioned in same sentence → weak link
-  const sentences = text.split(/[.!?]+/);
-  for (const sent of sentences) {
+  for (const {text:sent} of sentences) {
     const present = [...new Set(entityNames.filter(name => {
       const re = new RegExp(`(?<![\\p{L}\\p{N}])${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?![\\p{L}\\p{N}])`, 'iu');
       return re.test(sent);
@@ -894,10 +999,11 @@ function extractRelationships(text, entityMap) {
     for (let i=0;i<present.length;i++) {
       for (let j=i+1;j<present.length;j++) {
         const key = [present[i],present[j]].sort().join('|') + '|co-occurs';
-        if (!seen.has(key)) {
-          seen.add(key);
-          links.push({source:present[i], target:present[j], relationship:'co-occurs', strength:1, confidence:'low'});
+        if (!seen[key]) {
+          seen[key] = {source:present[i], target:present[j], relationship:'co-occurs', strength:1, confidence:'low', evidence:[]};
+          links.push(seen[key]);
         }
+        addEvidence(seen[key], sent);
       }
     }
   }
@@ -1348,8 +1454,12 @@ function renderStats() {
   document.getElementById('stat-bridge').textContent=top?(top.name.length>14?top.name.slice(0,13)+'…':top.name):'—';
 }
 
-function filterEntities() { state.search=document.getElementById('search-input').value; renderEntityList(); }
-function setTypeFilter(t) { state.filterType=t; renderEntityList(); }
+function filterEntities() { state.search=document.getElementById('search-input').value; renderEntityList(); applyGraphFilter(); }
+function setTypeFilter(t) { state.filterType=t; renderEntityList(); applyGraphFilter(); }
+function searchKey(e) {
+  if(e.key==='Enter'){e.preventDefault();zoomToMatch();}
+  else if(e.key==='Escape'){e.preventDefault();clearSearch();e.target.blur();}
+}
 
 function renderEntityList() {
   if(!state.analysis) return;
@@ -1511,9 +1621,42 @@ function deleteEntity() {
 // ══════════════════════════════════════════════════════
 //  NODE SELECTION + DETAIL
 // ══════════════════════════════════════════════════════
-function selectNode(n) { if(state.selectedNode?.id!==n.id)state.editing=false; state.selectedNode=n; renderEntityList(); renderDetail(); }
+function selectNode(n) { if(state.selectedNode?.id!==n.id)state.editing=false; state.selectedNode=n; state.selectedLink=null; renderEntityList(); renderDetail(); applyGraphFilter(); }
 function selectNodeById(id) { const n=state.analysis?.nodes.find(x=>x.id===id); if(n){selectNode(n);setTab('entities');} }
-function closeDetail() { state.selectedNode=null; state.editing=false; document.getElementById('detail').style.display='none'; renderEntityList(); }
+function closeDetail() { state.selectedNode=null; state.selectedLink=null; state.editing=false; document.getElementById('detail').style.display='none'; renderEntityList(); applyGraphFilter(); }
+
+// ── Link detail: the two ends, the relationship, and the sentence(s) it came from ──
+function selectLink(l) { state.selectedLink=linkKey(l); state.selectedNode=null; state.editing=false; renderEntityList(); renderDetail(); applyGraphFilter(); }
+function selectLinkByKey(k) { const l=state.analysis?.links.find(x=>linkKey(x)===k); if(l)selectLink(l); }
+function endIds(l) { return [typeof l.source==='object'?l.source.id:l.source, typeof l.target==='object'?l.target.id:l.target]; }
+function renderLinkDetail(el) {
+  const l=state.analysis.links.find(x=>linkKey(x)===state.selectedLink);
+  if(!l){state.selectedLink=null;el.style.display='none';return;}
+  el.style.display='block';
+  const [s,t]=endIds(l), byId=Object.fromEntries(state.analysis.nodes.map(n=>[n.id,n]));
+  const S=byId[s]||{name:s,type:'other'}, T=byId[t]||{name:t,type:'other'};
+  const conf=CONF_COLORS[l.confidence]||'#FFB830', undirected=l.relationship==='co-occurs';
+  const end=(n,id)=>`<button class="btn-sm" onclick="selectNodeById('${esc(id)}')" style="display:flex;align-items:center;gap:6px;width:100%;text-align:left;color:#C8E0EE;font-weight:600;font-size:.64rem;padding:6px 8px" title="Open entity"><span style="width:7px;height:7px;border-radius:50%;background:${TYPE_COLORS[n.type]||'#888'};flex-shrink:0"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.name)}</span><span style="color:#3A5A72">→</span></button>`;
+  const ev=Array.isArray(l.evidence)?l.evidence.filter(e=>typeof e==='string'&&e.trim()):[];
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:.53rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:rgba(0,200,255,.08);border:1px solid rgba(0,200,255,.3);color:#00C8FF">Link</div>
+      <button class="btn-sm" onclick="closeDetail()">✕</button>
+    </div>
+    ${end(S,s)}
+    <div style="display:flex;align-items:center;gap:8px;margin:4px 0 4px 2px"><span style="color:#3A5A72;font-size:.9rem;line-height:1">${undirected?'↕':'↓'}</span><span style="font-family:'Oxanium',sans-serif;font-size:.82rem;font-weight:800;color:#C8E0EE">${esc(l.relationship)}</span></div>
+    ${end(T,t)}
+    <div style="display:flex;align-items:center;gap:7px;margin:10px 0 12px">
+      <span style="font-size:.54rem;color:${conf};background:${conf}1A;border-radius:3px;padding:1px 6px">${esc(l.confidence)} conf</span>
+      <span style="font-size:.54rem;color:#C8E0EE;background:#1A2A38;border-radius:3px;padding:1px 6px">strength ${parseInt(l.strength)||1}</span>
+      ${undirected?'<span style="font-size:.54rem;color:#4A7090">same sentence</span>':''}
+    </div>
+    <div class="detail-label" style="margin-bottom:7px">Evidence (${ev.length})</div>
+    ${ev.length?ev.map(e=>`<blockquote class="evidence">${esc(e)}</blockquote>`).join('')
+      :`<div style="font-size:.58rem;color:#4A7090;line-height:1.7;background:#101820;border:1px solid #1A2A38;border-radius:6px;padding:8px 10px">No supporting sentence was found in the source text. ${state.analysis.source?.startsWith('LLM')?'The model asserted this link without a quotable sentence, or quoted one that is not in the text — treat it as unverified.':'This link was added by hand or loaded from a file.'}</div>`}
+    <div style="font-size:.52rem;color:#3A5A72;margin-top:10px;line-height:1.6">${state.analysis.source?.startsWith('LLM')?'Evidence is kept only when the quoted sentence appears in the text.':'Sentences are shown as analyzed, after pronoun resolution.'}</div>
+  `;
+}
 function togglePin(nodeId) {
   if(state.pinnedNodes[nodeId]){delete state.pinnedNodes[nodeId];}
   else{const nd=d3g?.selectAll('g.node').filter(d=>d.id===nodeId).datum();state.pinnedNodes[nodeId]={x:nd?.x||0,y:nd?.y||0};}
@@ -1522,6 +1665,7 @@ function togglePin(nodeId) {
 
 function renderDetail() {
   const n=state.selectedNode, el=document.getElementById('detail');
+  if(!n&&state.selectedLink&&state.analysis){renderLinkDetail(el);return;}
   if(!n){el.style.display='none';return;}
   el.style.display='block';
   const m=state.sna?.node_metrics?.[n.id]||{};
@@ -1531,7 +1675,7 @@ function renderDetail() {
     const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;
     const sName=typeof l.source==='object'?l.source.name:state.analysis.nodes.find(x=>x.id===s)?.name;
     const tName=typeof l.target==='object'?l.target.name:state.analysis.nodes.find(x=>x.id===t)?.name;
-    return{name:s===n.id?tName:sName,rel:l.relationship,dir:s===n.id?'→':'←',conf:l.confidence};
+    return{name:s===n.id?tName:sName,rel:l.relationship,dir:s===n.id?'→':'←',conf:l.confidence,key:linkKey(l),ev:Array.isArray(l.evidence)?l.evidence.length:0};
   });
   function sBar(label,val,col){const pct=Math.min(100,Math.max(0,(val||0)*100));return`<div style="margin-bottom:4px"><div class="score-row"><span style="font-size:.57rem;color:#4A7090;font-weight:600">${label}</span><span style="font-size:.57rem;color:${col};font-weight:700">${(val||0).toFixed(3)}</span></div><div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${col}"></div></div></div>`;}
   el.innerHTML=`
@@ -1570,9 +1714,10 @@ function renderDetail() {
       ${sBar('Clustering',m.clustering,'#A855F7')}
     </div>
     <div class="detail-label" style="margin-bottom:7px">Connections (${conns.length})</div>
-    ${conns.map(c=>`<div style="display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:#101820;border:1px solid #1A2A38;border-radius:6px;margin-bottom:4px">
+    ${conns.map(c=>`<div class="conn-row" onclick="selectLinkByKey(${JSON.stringify(c.key).replace(/</g,'\\u003c').replace(/"/g,'&quot;')})" title="Show evidence">
       <span style="color:#3A5A72;flex-shrink:0;margin-top:1px">${c.dir}</span>
-      <div><div style="font-size:.62rem;color:#C8E0EE;font-weight:600">${esc(c.name||'?')}</div><div style="font-size:.56rem;color:#4A7090;margin-top:1px">${esc(c.rel)}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:.62rem;color:#C8E0EE;font-weight:600">${esc(c.name||'?')}</div><div style="font-size:.56rem;color:#4A7090;margin-top:1px">${esc(c.rel)}</div></div>
+      <span style="font-size:.52rem;color:${c.ev?'#4A7090':'#3A5A72'};flex-shrink:0" title="${c.ev} supporting sentence${c.ev!==1?'s':''}">${c.ev?'❝'+c.ev:'—'}</span>
     </div>`).join('')}
   `;
 }
@@ -1600,11 +1745,17 @@ function renderGraph() {
   const rScale=n=>8+(n.degree||0)*2+eigScore(n)*10;
   const confColors={high:'#00FF9D',medium:'#FFB830',low:'#FF6B35'};
 
-  const link=g.append('g').selectAll('line').data(links).join('line')
+  const link=g.append('g').selectAll('line').data(links).join('line').attr('class','link')
     .attr('stroke',d=>`rgba(40,80,110,${d.confidence==='low'?0.2:d.confidence==='medium'?0.4:0.6})`)
     .attr('stroke-width',d=>(d.strength||1)*1.3)
     .attr('stroke-dasharray',d=>d.strength===1||d.confidence==='low'?'5,4':'none');
-  link.append('title').text(d=>`${d.relationship} [${d.confidence}]`);
+  // Wide transparent twins of the links, so a 1px line is clickable. Click → link detail with its evidence.
+  const hit=g.append('g').selectAll('line').data(links).join('line').attr('class','link-hit')
+    .attr('stroke','transparent').attr('stroke-width',12).attr('cursor','pointer')
+    .on('click',(e,d)=>{e.stopPropagation();selectLink(d);})
+    .on('mouseenter',(e,d)=>{link.filter(l=>l===d).attr('stroke','rgba(0,200,255,.7)');})
+    .on('mouseleave',(e,d)=>{if(!isSelectedLink(d))link.filter(l=>l===d).attr('stroke',`rgba(40,80,110,${d.confidence==='low'?0.2:d.confidence==='medium'?0.4:0.6})`);});
+  hit.append('title').text(d=>`${d.relationship} [${d.confidence}]\nClick for evidence`);
 
   const sim=d3.forceSimulation(nodes)
     .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>130-(d.strength||1)*18))
@@ -1635,10 +1786,49 @@ function renderGraph() {
 
   sim.on('tick',()=>{
     link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    hit.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
     node.attr('transform',d=>`translate(${d.x},${d.y})`);
   });
   svg.on('click',()=>closeDetail());
   sim.on('end',()=>{sim.on('end',null);zoomFit();}); // fit once; drags and pins reheat the sim but keep the user's zoom
+  applyGraphFilter();
+}
+
+// Search + type filter on the canvas: matching nodes stay lit, everything else dims. Links stay lit only
+// when both ends match. The selected link, if any, is drawn in cyan. Called on every search/filter change.
+function nodeMatches(n) {
+  if(state.filterType!=='all'&&n.type!==state.filterType)return false;
+  if(state.search&&!n.name.toLowerCase().includes(state.search.toLowerCase()))return false;
+  return true;
+}
+function isSelectedLink(d) { const k=state.selectedLink; return !!k&&linkKey(d)===k; }
+function linkKey(l) { const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target; return `${s}|${t}|${l.relationship}`; }
+function applyGraphFilter() {
+  if(!d3g)return;
+  const active=state.search||state.filterType!=='all';
+  d3g.selectAll('g.node').attr('opacity',d=>!active||nodeMatches(d)?1:0.12);
+  d3g.selectAll('line.link')
+    .attr('opacity',d=>!active?1:(nodeMatches(d.source)&&nodeMatches(d.target))?1:(nodeMatches(d.source)||nodeMatches(d.target))?0.35:0.06)
+    .attr('stroke',d=>isSelectedLink(d)?'rgba(0,200,255,.85)':`rgba(40,80,110,${d.confidence==='low'?0.2:d.confidence==='medium'?0.4:0.6})`)
+    .attr('stroke-width',d=>(d.strength||1)*1.3+(isSelectedLink(d)?1.2:0));
+}
+// Enter in the search box: pan/zoom to the best match (most mentioned), keeping the current scale if it's already readable.
+function zoomToMatch() {
+  if(!d3g||!d3svg||!state.search)return false;
+  const hits=[];
+  d3g.selectAll('g.node').each(d=>{if(nodeMatches(d))hits.push(d);});
+  if(!hits.length){toast('No entity matches','warn');return false;}
+  const d=hits.sort((a,b)=>(b.mentions||0)-(a.mentions||0))[0];
+  const el=document.getElementById('canvas'),H=el.clientHeight;
+  const W=el.clientWidth-(window.innerWidth>640?272:0); // centre in the part of the canvas the detail panel leaves visible
+  const k=Math.max(d3.zoomTransform(d3svg.node()).k,1.2);
+  d3svg.transition().duration(500).call(d3zoom.transform,d3.zoomIdentity.translate(W/2-k*d.x,H/2-k*d.y).scale(k));
+  const n=state.analysis.nodes.find(x=>x.id===d.id); if(n)selectNode(n);
+  return true;
+}
+function clearSearch() {
+  const inp=document.getElementById('search-input'); if(inp)inp.value='';
+  state.search=''; renderEntityList(); applyGraphFilter();
 }
 
 function updatePins() {
@@ -1682,8 +1872,8 @@ function doExport(type) {
     a.nodes.forEach(n=>{const m=metrics[n.id]||{};nc+=`${csvCell(n.id)},${csvCell(n.name)},${csvCell(n.type)},${csvCell(n.confidence)},${n.mentions},${n.degree},${fmt(m.degree_centrality)},${fmt(m.betweenness)},${fmt(m.closeness)},${fmt(m.eigenvector)},${fmt(m.pagerank)},${fmt(m.clustering)}\n`;});
     dl(nc,`trapline_${slug}_nodes_${date}.csv`,'text/csv');
     const nodeNames=Object.fromEntries(a.nodes.map(n=>[n.id,n.name]));
-    let ec='source_id,source_name,target_id,target_name,relationship,strength,confidence\n';
-    a.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;ec+=`${csvCell(s)},${csvCell(nodeNames[s]||s)},${csvCell(t)},${csvCell(nodeNames[t]||t)},${csvCell(l.relationship)},${l.strength},${csvCell(l.confidence)}\n`;});
+    let ec='source_id,source_name,target_id,target_name,relationship,strength,confidence,evidence\n';
+    a.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;ec+=`${csvCell(s)},${csvCell(nodeNames[s]||s)},${csvCell(t)},${csvCell(nodeNames[t]||t)},${csvCell(l.relationship)},${l.strength},${csvCell(l.confidence)},${csvCell(evidenceText(l))}\n`;});
     setTimeout(()=>dl(ec,`trapline_${slug}_edges_${date}.csv`,'text/csv'),300);
     toast('Downloading CSV files…');
   } else if(type==='md'){
@@ -1693,6 +1883,14 @@ function doExport(type) {
     md+=`\n## Relationships\n\n\`\`\`\n`;
     a.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;md+=`[[${nodeNames[s]||s}]] --[${l.relationship}]--> [[${nodeNames[t]||t}]]\n`;});
     md+='```\n';
+    const withEv=a.links.filter(l=>Array.isArray(l.evidence)&&l.evidence.length);
+    if(withEv.length){
+      md+=`\n## Evidence\n\n`;
+      withEv.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;
+        md+=`**${nodeNames[s]||s}** —${l.relationship}→ **${nodeNames[t]||t}**\n`;
+        l.evidence.forEach(e=>{md+=`> ${String(e).replace(/\r?\n/g,' ')}\n`;});
+        md+='\n';});
+    }
     dl(md,`trapline_${slug}_${date}.md`,'text/markdown');
     toast('Downloading Markdown…');
   } else if(type==='json'){
@@ -1726,7 +1924,7 @@ function toGEXF(a, metrics, date) {
   x+=`  <graph mode="static" defaultedgetype="undirected">\n    <attributes class="node">\n`;
   x+=attr('type','string')+attr('confidence','string')+attr('mentions','integer')+attr('description','string')+attr('degree','integer');
   NUM.forEach(k=>x+=attr(k,'double'));
-  x+=`    </attributes>\n    <attributes class="edge">\n`+attr('confidence','string')+`    </attributes>\n    <nodes>\n`;
+  x+=`    </attributes>\n    <attributes class="edge">\n`+attr('confidence','string')+attr('evidence','string')+`    </attributes>\n    <nodes>\n`;
   a.nodes.forEach(n=>{
     const m=metrics[n.id]||{};
     x+=`      <node id="${xmlEsc(n.id)}" label="${xmlEsc(n.name)}"><attvalues>${val('type',n.type)}${val('confidence',n.confidence)}${val('mentions',parseInt(n.mentions)||0)}${val('description',n.description)}${val('degree',parseInt(n.degree)||0)}${NUM.map(k=>val(k,typeof m[k]==='number'?m[k].toFixed(6):'0')).join('')}</attvalues></node>\n`;
@@ -1735,7 +1933,7 @@ function toGEXF(a, metrics, date) {
   a.links.forEach((l,i)=>{
     const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;
     if(!ids.has(s)||!ids.has(t))return;
-    x+=`      <edge id="e${i}" source="${xmlEsc(s)}" target="${xmlEsc(t)}" label="${xmlEsc(l.relationship)}" kind="${xmlEsc(l.relationship)}" weight="${Number(l.strength)||1}"><attvalues>${val('confidence',l.confidence)}</attvalues></edge>\n`;
+    x+=`      <edge id="e${i}" source="${xmlEsc(s)}" target="${xmlEsc(t)}" label="${xmlEsc(l.relationship)}" kind="${xmlEsc(l.relationship)}" weight="${Number(l.strength)||1}"><attvalues>${val('confidence',l.confidence)}${val('evidence',evidenceText(l))}</attvalues></edge>\n`;
   });
   return x+`    </edges>\n  </graph>\n</gexf>\n`;
 }
@@ -1745,6 +1943,39 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('#export-menu')&&!e.target.closest('#btn-export')){
     document.getElementById('export-menu').style.display='none';
     state.showExport=false;
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  HELP + KEYBOARD SHORTCUTS
+//  Single-key shortcuts never fire while typing. Ctrl/Cmd+Enter analyses from anywhere, including the text box.
+// ══════════════════════════════════════════════════════
+function toggleHelp(force) {
+  const el=document.getElementById('help');
+  const show=force!==undefined?force:el.style.display==='none';
+  el.style.display=show?'flex':'none';
+}
+document.addEventListener('keydown',e=>{
+  const tag=e.target.tagName, typing=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||e.target.isContentEditable;
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();if(!document.getElementById('btn-analyse').disabled)runAnalysis();return;}
+  if(e.key==='Escape'){
+    if(document.getElementById('help').style.display!=='none'){toggleHelp(false);return;}
+    if(typing)return; // the search box handles its own Esc
+    if(state.editing){toggleEdit();return;}
+    if(state.selectedNode||state.selectedLink){closeDetail();return;}
+    if(state.search)clearSearch();
+    return;
+  }
+  if(typing||e.ctrlKey||e.metaKey||e.altKey)return;
+  switch(e.key){
+    case '?': e.preventDefault(); toggleHelp(); break;
+    case '/': if(state.analysis){e.preventDefault();setTab('entities');document.getElementById('search-input').focus();} break;
+    case 'f': case 'F': if(state.analysis){e.preventDefault();zoomFit();} break;
+    case '+': case '=': if(state.analysis){e.preventDefault();zoomIn();} break;
+    case '-': case '_': if(state.analysis){e.preventDefault();zoomOut();} break;
+    case '0': if(state.analysis){e.preventDefault();zoomReset();} break;
+    case 'p': case 'P': if(state.selectedNode){e.preventDefault();togglePin(state.selectedNode.id);} break;
+    case 'e': case 'E': if(state.selectedNode){e.preventDefault();toggleEdit();} break;
   }
 });
 

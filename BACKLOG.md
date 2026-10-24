@@ -72,7 +72,11 @@ _None right now. GEXF export shipped; see Shipped above._
 **Why it helps:** Rename/retype/delete shipped, and a rename onto an existing name is refused on purpose. This is the remaining piece of manual editing.
 **Recommendation:** v1.x. Keep it an explicit two-entity pick, never name-similarity automation.
 
-### Keyboard shortcuts + help modal
-**What:** Hotkeys for common actions; an in-app help/reference panel.
-**Why it helps:** Speed and discoverability for power users.
-**Recommendation:** Polish. Explicitly low priority — do not let it delay shipping.
+> **Shipped in v1.x (no longer backlog):**
+> - **Evidence on every link.** Offline links carry the sentence(s) the pattern or co-occurrence matched in (max 3, 320 chars each, as analyzed after pronoun resolution). LLM links carry the model's quoted sentence only when it appears verbatim in the text (whitespace/case/punctuation-insensitive); otherwise the first sentence(s) naming both entities, otherwise nothing, and the panel says so. Click a link on the canvas or a connection row to read it. Exported as an `evidence` CSV column, GEXF edge attribute, and a Markdown "Evidence" section.
+> - **Graph search.** Search and the type filter dim non-matching nodes to 12% and links to 35%/6% depending on how many ends match; Enter zooms to the most-mentioned match and selects it; Esc clears.
+> - **Keyboard shortcuts + help modal** (`?`).
+
+### Still open
+- **Evidence for merged entities.** Merging in Dupes rewires links but does not combine the evidence of two links that collapse onto the same pair — the first one wins. Minor; the sentences are still in the text.
+- **Evidence is per link, not per mention.** A co-occurrence seen in 5 sentences keeps 3. Enough to check the link; not a concordance.

@@ -28,11 +28,14 @@ The point is to make link analysis usable without a link-analysis toolchain. If 
 - **One-click model picker** — list the models actually installed on your LLM endpoint and choose from a dropdown, so you never have to remember exact tag names.
 - **Paste or upload** — type/paste text directly, or load a `.txt`, `.csv`, or text-based `.pdf`. Files are parsed in your browser and never uploaded; scanned or image-only PDFs aren't supported yet (no OCR).
 - **Interactive force-directed graph** — built on D3.js; node size reflects how central a node is, and confidence is shown visually.
+- **Evidence on every link** — click a connection to see the sentence(s) it was extracted from, quoted from the text. In LLM mode the model's quote is kept only when it actually appears in the text; otherwise Trapline finds a sentence naming both entities, or says plainly that there is none. Evidence rides along into the CSV, GEXF, and Markdown exports.
+- **Search the graph** — typing in the search box dims everything that doesn't match on the canvas as well as in the list; Enter zooms to the best match. The type filter works the same way.
 - **Social network analysis, computed for you** — degree centrality, betweenness, closeness, eigenvector centrality, PageRank, and clustering coefficient, all calculated in-browser.
 - **Cleanup tools** — flag anomalies, and detect and merge duplicate entities.
 - **Edit entities** — fix what extraction got wrong: rename an entity, change its type, or delete it (with its connections) from the detail panel. Metrics, flags, and duplicate suggestions recompute after every edit. Renaming onto an existing entity's name (ignoring case and punctuation) is refused, never merged; when the Dupes tab can combine the two, the message says so.
 - **Pin and arrange** — double-click nodes to pin them and lay the network out the way you want.
-- **Exports** — CSV (nodes + edges, with SNA metrics), Obsidian-ready Markdown, raw JSON, and GEXF 1.3 for [Gephi](https://gephi.org/) (nodes carry type, confidence, mentions, description, and every SNA metric; edges carry the relationship label and strength as weight).
+- **Exports** — CSV (nodes + edges, with SNA metrics), Obsidian-ready Markdown, raw JSON, and GEXF 1.3 for [Gephi](https://gephi.org/) (nodes carry type, confidence, mentions, description, and every SNA metric; edges carry the relationship label, strength as weight, and the evidence sentences).
+- **Keyboard shortcuts** — press `?` for the full list: `/` to search, `F` to fit, `P` to pin, `E` to edit, `Esc` to close, `Ctrl+Enter` to analyse.
 
 ---
 
@@ -76,6 +79,8 @@ Want something to try first? [`examples/`](examples/) has three short, fictional
 
 - **Analyze text** — paste an article, report, or document (works best with 200–2000 words of continuous prose) and click Analyse.
 - **Read the graph** — larger nodes are more central; use the SNA metrics to sort by betweenness or PageRank to find the actors that hold the network together.
+- **Check a link** — click any connection on the canvas, or a row in an entity's Connections list, to read the sentence it came from before you rely on it.
+- **Find a node** — type in the search box to dim everything else; press Enter to zoom to the best match. `?` shows every shortcut.
 - **Refine** — review flagged anomalies, merge duplicate entities, and click an entity then ✎ to rename, retype, or delete it.
 - **Arrange** — double-click nodes to pin them in place.
 - **Export** — send the network to CSV, Obsidian, JSON, or Gephi (GEXF) for downstream work.
@@ -101,11 +106,11 @@ flowchart LR
 ```
 
 - **Input.** Uploaded files are read in the browser and never uploaded. CSV rows are turned into labelled sentences. PDFs go through pdf.js, which pulls out the text layer only.
-- **Offline engine.** A cautious pronoun pass first: a sentence-initial *He* or *She* is replaced only when exactly one matching person was named in the sentence before. compromise.js then tags people, organizations, places and other noun phrases, and a few regexes add dates and capitalized names it missed. Relationships come from verb patterns such as *founded*, *works for* or *met with*. Entities named in the same sentence get a weaker co-occurrence link.
-- **LLM engine.** The text goes to the endpoint in the config panel with a prompt asking for strict JSON. The reply is cleaned up before use: code fences are stripped, cut-off JSON is salvaged where possible, types and confidence values are limited to known values, and links to unknown entities or self-links are dropped.
+- **Offline engine.** A cautious pronoun pass first: a sentence-initial *He* or *She* is replaced only when exactly one matching person was named in the sentence before. compromise.js then tags people, organizations, places and other noun phrases, and a few regexes add dates and capitalized names it missed. Relationships come from verb patterns such as *founded*, *works for* or *met with*. Entities named in the same sentence get a weaker co-occurrence link. Each link keeps the sentence(s) it was found in.
+- **LLM engine.** The text goes to the endpoint in the config panel with a prompt asking for strict JSON. The reply is cleaned up before use: code fences are stripped, cut-off JSON is salvaged where possible, types and confidence values are limited to known values, and links to unknown entities or self-links are dropped. The model is asked to quote one sentence per link as evidence; a quote that is not in the text is discarded and replaced by a sentence naming both entities, if there is one.
 - **Metrics.** Degree, betweenness, closeness, eigenvector, PageRank and clustering are computed in plain JavaScript. They are recomputed after every merge.
 - **Review.** Flags point out likely brokers, isolated entities, low-confidence entities and graphs that are mostly co-occurrence. Duplicate suggestions are only suggestions. Nothing merges until you click Merge.
-- **Display.** Extracted names and labels are treated as untrusted and escaped before they reach the page.
+- **Display.** Extracted names, labels and evidence sentences are treated as untrusted and escaped before they reach the page.
 
 ---
 
@@ -124,8 +129,8 @@ Trapline is built to keep sensitive material on your machine. What leaves your d
 
 Trapline v1 is an honest proof-of-concept of the text → graph pipeline, not a finished analytic platform. Known limits:
 
-- **Extraction is imperfect.** Offline mode uses pattern- and rule-based NLP (compromise.js) and will miss entities or relationships that don't fit its patterns; coreference resolution is heuristic and can mis-attribute pronouns. Verify findings against the source.
-- **Small local models hallucinate.** A 3–4B model will occasionally invent entities or relationships not present in the text. Larger or remote models reduce this but don't eliminate it.
+- **Extraction is imperfect.** Offline mode uses pattern- and rule-based NLP (compromise.js) and will miss entities or relationships that don't fit its patterns; coreference resolution is heuristic and can mis-attribute pronouns. Verify findings against the source: the evidence on each link shows the sentence as it was analyzed, after pronoun resolution, so a wrongly resolved pronoun is visible there.
+- **Small local models hallucinate.** A 3–4B model will occasionally invent entities or relationships not present in the text. Larger or remote models reduce this but don't eliminate it. A link with no evidence in LLM mode is a sign: the model asserted it without a sentence that supports it.
 - **LLM input is capped at 5,000 characters.** In LLM mode, longer text is truncated to the first 5,000 characters (you'll see a warning). Offline mode reads the full text. The cap is lifted in v2's server-side pipeline.
 - **Edits are not undoable and not saved.** Deleting an entity asks first but can't be reversed, and running Analyse again starts over from the text. Export to keep a cleaned-up network (Trapline cannot load an export back in yet). You can only merge entities that the Dupes tab groups together.
 
