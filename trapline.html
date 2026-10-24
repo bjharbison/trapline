@@ -55,7 +55,7 @@ textarea.inp{resize:none;line-height:1.65}
 .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
 #detail{position:absolute;right:0;top:0;bottom:0;width:272px;background:#0C1118;border-left:1px solid #1A2A38;padding:14px 13px;overflow-y:auto;z-index:40;animation:slideIn .2s ease}
-@media (max-width:640px){#detail{position:fixed;top:50px;bottom:46px;left:0;right:0;width:auto;border-left:none;z-index:150}}
+@media (max-width:640px){#detail{position:fixed;top:50px;bottom:46px;left:0;right:0;width:auto;border-left:none;z-index:150}#toast{white-space:normal!important;width:max-content;max-width:calc(100vw - 32px);text-align:center}}
 .detail-label{font-size:.54rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#3A5A72;margin-bottom:6px}
 .score-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
 .score-bar{height:3px;background:#1A2A38;border-radius:2px;overflow:hidden;margin-top:2px;margin-bottom:5px}
@@ -670,6 +670,9 @@ function parseLLMResponse(raw) {
     mentions: parseInt(n.mentions)||1,
     description: n.description||'',
   }));
+  // Distinct nodes never share an id (two names can slug alike, ids are cut at 40 chars); links keep the first.
+  const seen=new Set();
+  data.nodes.forEach(n=>{let id=n.id||'entity',i=2;while(seen.has(id))id=`${n.id||'entity'}_${i++}`;n.id=id;seen.add(id);});
 
   const ids=new Set(data.nodes.map(n=>n.id));
   // Sanitize links
@@ -1246,7 +1249,7 @@ async function runAnalysis() {
     const dupes  = findDupes(analysis.nodes);
 
     state.analysis=analysis; state.sna=sna; state.flags=flags; state.dupes=dupes;
-    state.selectedNode=null; state.pinnedNodes={};
+    state.selectedNode=null; state.pinnedNodes={}; state.editing=false;
 
     renderAll();
     setStatus('READY'); setStep('');
@@ -1422,9 +1425,12 @@ function saveEntityEdit() {
   if(!name){toast('Name cannot be empty','err');return;}
   if(!TYPE_COLORS[type])return;
   const key=s=>nameKey(s)||s.toLowerCase();
-  const clash=state.analysis.nodes.find(x=>x.id!==n.id&&key(x.name)===key(name));
+  // Only a changed name can clash, so retyping one of two same-named entities stays possible.
+  const clash=key(name)!==key(n.name)&&state.analysis.nodes.find(x=>x.id!==n.id&&key(x.name)===key(name));
   if(clash){
-    toast(clash.type===type?`"${shortName(clash.name)}" exists — merge in Dupes`:`"${shortName(clash.name)}" exists as ${clash.type} — match type, merge in Dupes`,'warn');
+    // Point at Dupes only when Dupes really groups (or would group, once types match) the two.
+    const c=shortName(clash.name), pair=findDupes([clash,{...n,type:clash.type}]).length>0;
+    toast(!pair?`"${c}" exists — rename refused, no merge`:clash.type===n.type?`"${c}" exists — merge in Dupes`:`"${c}" exists — set type ${clash.type}, merge in Dupes`,'warn');
     return;
   }
   state.editing=false;
@@ -1646,12 +1652,13 @@ function doExport(type) {
 // XML 1.0 text/attribute: drop code points XML forbids (control chars, lone surrogates, U+FFFE/FFFF),
 // escape the five specials, and keep tabs/newlines as char refs so attribute values survive parsing.
 function xmlEsc(s) {
-  return String(s??'').replace(/[^\x09\x0A\x0D\x20-퟿-�\u{10000}-\u{10FFFF}]/gu,'')
+  return String(s??'').replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu,'')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;')
     .replace(/\t/g,'&#9;').replace(/\n/g,'&#10;').replace(/\r/g,'&#13;');
 }
 // GEXF 1.3 for Gephi. Undirected, matching the SNA metrics (computed on the undirected graph);
-// each edge keeps its source → target order and relationship label.
+// each edge keeps its source → target order and relationship label. kind = relationship, so Gephi keeps
+// parallel edges ("funds" and "co-occurs" between the same pair) apart instead of summing them.
 function toGEXF(a, metrics, date) {
   const NUM=['degree_centrality','betweenness','closeness','eigenvector','pagerank','clustering'];
   const ids=new Set(a.nodes.map(n=>n.id));
@@ -1671,7 +1678,7 @@ function toGEXF(a, metrics, date) {
   a.links.forEach((l,i)=>{
     const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;
     if(!ids.has(s)||!ids.has(t))return;
-    x+=`      <edge id="e${i}" source="${xmlEsc(s)}" target="${xmlEsc(t)}" label="${xmlEsc(l.relationship)}" weight="${Number(l.strength)||1}"><attvalues>${val('confidence',l.confidence)}</attvalues></edge>\n`;
+    x+=`      <edge id="e${i}" source="${xmlEsc(s)}" target="${xmlEsc(t)}" label="${xmlEsc(l.relationship)}" kind="${xmlEsc(l.relationship)}" weight="${Number(l.strength)||1}"><attvalues>${val('confidence',l.confidence)}</attvalues></edge>\n`;
   });
   return x+`    </edges>\n  </graph>\n</gexf>\n`;
 }

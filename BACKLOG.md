@@ -23,8 +23,8 @@ Features considered but not in the current v1 build. Captured so they aren't los
 - **Leading "The" still splits entities** ("The FBI" / "FBI"). The stoplist also drops a real one-word "May" (Theresa May referred to by surname).
 
 > **Shipped in v1.x (no longer backlog):**
-> - **GEXF export** for Gephi: GEXF 1.3, undirected (matching how the SNA metrics are computed), node attributes for type, confidence, mentions, description, degree and every SNA metric; edges with relationship label and strength as weight. Strings are XML-escaped and XML-illegal characters are stripped.
-> - **Manual entity editing** from the detail panel: rename, retype, delete. Ids stay stable; metrics, flags and dupes recompute; pins survive. A rename onto another entity's name (ignoring case and punctuation) is refused and points to Dupes merge.
+> - **GEXF export** for Gephi: GEXF 1.3, undirected (matching how the SNA metrics are computed), node attributes for type, confidence, mentions, description, degree and every SNA metric; edges with relationship label (also as `kind`, so Gephi keeps parallel edges apart) and strength as weight. Strings are XML-escaped and XML-illegal characters are stripped.
+> - **Manual entity editing** from the detail panel: rename, retype, delete. Ids stay stable; metrics, flags and dupes recompute; pins survive. A rename onto another entity's name (ignoring case and punctuation) is refused, and points to Dupes merge only when Dupes groups the pair.
 
 > **Shipped in v1 (no longer backlog):** output escaping at all `innerHTML` sinks (`esc()`), plus CSV formula-injection neutralization, RFC 4180 quote-doubling, and YAML frontmatter escaping (`csvCell()` and the Markdown export). These were security hardening, not features — they live in `trapline.html`.
 

@@ -28,6 +28,7 @@ GRAPH = {
     "links": [
         {"source": "hub", "target": "b", "relationship": "pays <cash> & 'more'", "strength": 3, "confidence": "high"},
         {"source": "c", "target": "hub", "relationship": "co-occurs", "strength": 1, "confidence": "low"},
+        {"source": "b", "target": "hub", "relationship": "co-occurs", "strength": 1, "confidence": "low"},
     ],
 }
 
@@ -84,7 +85,7 @@ with sync_playwright() as p:
             check(int(a["degree"]) == want["hale"]["deg"] and int(a["mentions"]) == want["hale"]["mentions"], "degree + mentions exported")
         ids = {n.get("id") for n in nodes}
         check(all(e.get("source") in ids and e.get("target") in ids for e in edges), "every edge points at a node")
-        check(all(e.get("label") and float(e.get("weight")) in (1.0, 2.0, 3.0) for e in edges), "edges have label + weight")
+        check(all(e.get("label") and e.get("kind") == e.get("label") and float(e.get("weight")) in (1.0, 2.0, 3.0) for e in edges), "edges have label, kind + weight")
 
     print("hostile strings")
     pg.evaluate(LOAD, GRAPH)
@@ -104,6 +105,8 @@ with sync_playwright() as p:
         check(desc == "it's a \"role\" & <b>bold</b> end\nline two", f"illegal XML chars stripped, newline kept ({desc!r})")
         e0 = next(e for e in edges if e.get("source") == "hub")
         check(e0.get("label") == "pays <cash> & 'more'" and e0.get("weight") == "3", "edge label escaped, weight = strength")
+        pair = [e for e in edges if {e.get("source"), e.get("target")} == {"hub", "b"}]
+        check(len(edges) == 3 and len({e.get("kind") for e in pair}) == 2, "parallel edges kept apart by kind")
         check(root.find("g:meta/g:description", NS).text == "Test & <graph>", "title escaped in meta")
     check(not errors, f"no page errors {errors}")
     b.close()

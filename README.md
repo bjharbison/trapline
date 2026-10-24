@@ -27,7 +27,7 @@ The point is to make link analysis usable without a link-analysis toolchain. If 
 - **Interactive force-directed graph** — built on D3.js; node size reflects how central a node is, and confidence is shown visually.
 - **Social network analysis, computed for you** — degree centrality, betweenness, closeness, eigenvector centrality, PageRank, and clustering coefficient, all calculated in-browser.
 - **Cleanup tools** — flag anomalies, and detect and merge duplicate entities.
-- **Edit entities** — fix what extraction got wrong: rename an entity, change its type, or delete it (with its connections) from the detail panel. Metrics, flags, and duplicate suggestions recompute after every edit. Renaming onto an existing entity's name is refused rather than merged; combine entities in the Dupes tab.
+- **Edit entities** — fix what extraction got wrong: rename an entity, change its type, or delete it (with its connections) from the detail panel. Metrics, flags, and duplicate suggestions recompute after every edit. Renaming onto an existing entity's name (ignoring case and punctuation) is refused, never merged; when the Dupes tab can combine the two, the message says so.
 - **Pin and arrange** — double-click nodes to pin them and lay the network out the way you want.
 - **Exports** — CSV (nodes + edges, with SNA metrics), Obsidian-ready Markdown, raw JSON, and GEXF 1.3 for [Gephi](https://gephi.org/) (nodes carry type, confidence, mentions, description, and every SNA metric; edges carry the relationship label and strength as weight).
 
