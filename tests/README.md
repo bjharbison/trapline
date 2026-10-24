@@ -19,6 +19,8 @@ bash tests/run_all.sh
 | `test_egress.py` | The panel warns whenever the endpoint isn't on this machine. |
 | `test_view.py` | The graph fits itself to the view once when the layout settles. Clicking or pinning a node afterwards keeps the user's zoom. |
 | `test_gexf.py` | GEXF export through the real menu, parsed with Python's XML parser: structure, counts, every node attribute, edge label/weight, and hostile strings (markup, quotes, XML-illegal characters) round-tripping as text. |
+| `test_provenance.py` | Every offline link carries real sentences of the analyzed text; the LLM parser keeps only quotes that appear in the source and falls back to a sentence naming both entities; link click / connection row open the link detail; hostile evidence and labels render as text; CSV, GEXF and Markdown carry the evidence. |
+| `test_search_shortcuts.py` | Search and type filter dim the canvas, Enter zooms to the best match, Esc clears; every shortcut (`?` `/` `F` `+` `-` `0` `P` `E` `Esc` `Ctrl+Enter`) works outside inputs and single keys never fire while typing. |
 | `test_editing.py` | Rename, retype and delete from the detail panel: stable ids, name-collision refusal (no silent merge), recomputed metrics/flags/dupes, pins kept, and a hostile name rendered as text in every panel. |
 
 **Changing the baseline.** If an extraction change is intended, run `python3 tests/test_offline_smoke.py --update`. Commit the new baseline, and paste the +/- diff from the run before into the PR so the change can be reviewed.
