@@ -6,19 +6,31 @@ Features considered but not in the current v1 build. Captured so they aren't los
 
 ---
 
-## Extraction quality (early post-launch)
+## Extraction quality
 
-These surfaced from a code read, not a feature wish. They affect accuracy, and two of them touch the project's core principle: never silently conflate distinct entities.
+> **Shipped (offline engine, no longer backlog):**
+> - `findEntityId` matches exactly (case/punctuation-insensitive) first, then only on whole tokens; short fragments are refused and ambiguous fragments return no match. "US" no longer hits "USS Cole" or "Marcus", "John" no longer hits "Johnson".
+> - `resolveCoref` only replaces a sentence-initial He/She when the previous sentence names exactly one compatible person (presumed gender from compromise must not clash). Possessives, objects, mid-sentence pronouns, they/it and ambiguous cases are left alone. Still heuristic: a single antecedent of unknown gender is accepted.
+> - Entity names drop surrounding punctuation, and case/punctuation-only variants are one entity ("Northgate Holdings," = "Northgate Holdings").
+> - Small stoplist for non-entities: months, weekdays and discourse words ("According", "June", "In June"). Dated events like "March 3" are kept.
+> - No self-loops; distinct entities never share a node id.
+>
+> Partial names ("Varga" vs "Elena Varga") are still separate nodes on purpose: that is alias normalization, a human decision in the Dupes tab. Worth measuring whether the remaining coref is net-positive once eval material exists.
 
-### Fix `findEntityId` substring matching
-**What:** The partial-match branch returns a hit whenever either string contains the other (`n.includes(fragment) || fragment.includes(n)`). So "US" matches inside "USS Cole" and "Marcus," and "John" matches both "John Smith" and "Johnson."
-**Why it matters:** During relationship extraction this silently wires edges to the wrong node — a false merge with no human in the loop, unlike the Dupes tab. Highest-value of these.
-**Fix:** Require whole-token matching against word boundaries; refuse matches on very short fragments.
+### Still open (post-launch)
+- **Surname-only relationship fragments.** If no "Varga" node survives the mention/entity filters, a typed relationship whose subject is just "Varga" is wired to the only matching full name ("Elena Varga"). Single-candidate whole-token matching is intended ("John" → "John Smith"), but it is an inference, not a fact in the text.
+- **Name-inside-name co-occurrence.** "Okafor" co-occurs with "Daniel Okafor" in the same sentence because it matches inside the longer mention, which inflates centrality for partial-name nodes. Skip matches whose span falls inside a longer matched name.
+- **Leading "The" still splits entities** ("The FBI" / "FBI"). The stoplist also drops a real one-word "May" (Theresa May referred to by surname).
+- **Passive voice reverses typed links.** "The fund was founded in 2019 by Teodora Vass" yields *fund → founded → Teodora Vass*. The relation patterns read subject-verb-object only; a "was \<verb\> by" check would flip these. Seen on `examples/investigative-report.txt`.
+- **Headings bleed into entities.** Title and heading lines have no sentence-ending punctuation, so they merge with the next sentence and produce names like "FICTIONAL EXAMPLE Subject". Treating line breaks as sentence boundaries would fix most of it.
 
-### Make `resolveCoref` conservative
-**What:** It replaces every person-pronoun with the last-seen person across sentence boundaries, with no gender/number agreement and no ambiguity check. "Alice met Bob. She left." resolves "She" to Bob.
-**Why it matters:** It can manufacture relationships that aren't in the text — injecting wrong facts, not just awkward grammar.
-**Fix:** Only resolve a subject pronoun at sentence start when there's exactly one candidate antecedent; leave possessives and ambiguous cases alone. Worth measuring whether naive coref is net-positive at all once eval material exists.
+## UI
+
+- **Detail panel covers the zoom controls.** While an entity is selected, the panel sits over the +/−/FIT buttons; close the panel or use the scroll wheel to zoom. Move the controls left of the panel when it is open.
+
+> **Shipped in v1.x (no longer backlog):**
+> - **GEXF export** for Gephi: GEXF 1.3, undirected (matching how the SNA metrics are computed), node attributes for type, confidence, mentions, description, degree and every SNA metric; edges with relationship label (also as `kind`, so Gephi keeps parallel edges apart) and strength as weight. Strings are XML-escaped and XML-illegal characters are stripped.
+> - **Manual entity editing** from the detail panel: rename, retype, delete. Ids stay stable; metrics, flags and dupes recompute; pins survive. A rename onto another entity's name (ignoring case and punctuation) is refused, and points to Dupes merge only when Dupes groups the pair.
 
 > **Shipped in v1 (no longer backlog):** output escaping at all `innerHTML` sinks (`esc()`), plus CSV formula-injection neutralization, RFC 4180 quote-doubling, and YAML frontmatter escaping (`csvCell()` and the Markdown export). These were security hardening, not features — they live in `trapline.html`.
 
@@ -26,12 +38,7 @@ These surfaced from a code read, not a feature wish. They affect accuracy, and t
 
 ## Strong candidates
 
-### Gephi / GEXF export
-**What:** Export the network as a `.gexf` file for analysis in Gephi.
-**Why it helps:** Gephi is the standard tool analysts move to for heavy layout and deeper SNA. Real audience fit.
-**The catch:** None.
-**Effort:** Low — a GEXF serializer already exists in the React `trapline_v2.html` prototype; mostly a port.
-**Recommendation:** Add. Good first post-launch enhancement to v1.
+_None right now. GEXF export shipped; see Shipped above._
 
 ---
 
@@ -60,10 +67,10 @@ These surfaced from a code read, not a feature wish. They affect accuracy, and t
 
 ## Worth considering (later)
 
-### Manual entity editing
-**What:** Rename, re-type, or hand-merge entities directly in the UI.
-**Why it helps:** Makes imperfect automated extraction trustworthy — the analyst can correct what the engine got wrong. Pairs naturally with the existing duplicate-merge tool.
-**Recommendation:** Reasonable candidate even for a v1.x point release.
+### Hand-merge any two entities
+**What:** Merge two entities the Dupes tab didn't group (different types, or names that aren't substrings of each other, like "Elena Varga" / "E. Varga").
+**Why it helps:** Rename/retype/delete shipped, and a rename onto an existing name is refused on purpose. This is the remaining piece of manual editing.
+**Recommendation:** v1.x. Keep it an explicit two-entity pick, never name-similarity automation.
 
 ### Keyboard shortcuts + help modal
 **What:** Hotkeys for common actions; an in-app help/reference panel.

@@ -1,0 +1,47 @@
+NOTICE OF DESIGNATION — FICTIONAL EXAMPLE
+Office of Financial Restrictions, Republic of Aldermark (an invented jurisdiction)
+Reference: OFR-EX-0042
+
+Background
+
+The Office of Financial Restrictions today designated four individuals and five entities for supplying dual-use machine tools to a prohibited end user in breach of the Aldermark Export Control Act. The network moved goods through Riga, Istanbul and Dubai and disguised payments as agricultural trade.
+
+Designated individuals
+
+1. Viktor Halloran, a businessman resident in Dubai. Halloran founded Kasterline Trading in 2017 and remains its beneficial owner. Halloran directs the network's purchasing and negotiates directly with suppliers.
+
+2. Sabine Okonkwo-Reyes, chief financial officer of Kasterline Trading. Okonkwo-Reyes manages the network's bank accounts and approved payments to Duvane Agricultural Partners.
+
+3. Emre Taskiran, a freight agent based in Istanbul. Taskiran works for Bosphor Line Logistics and arranged the transshipment of controlled goods from Riga.
+
+4. Lina Petravicius, director of Amberway Components, a supplier based in Riga. Petravicius signed an agreement with Kasterline Trading to supply precision lathes described in shipping papers as "farm equipment."
+
+Designated entities
+
+1. Kasterline Trading, a general trading company headquartered in Dubai. Kasterline Trading acted as the front company for the network.
+
+2. Duvane Agricultural Partners, a company registered in Limassol. Duvane Agricultural Partners received payments from Kasterline Trading and issued false invoices for grain.
+
+3. Amberway Components, a machine tool supplier based in Riga.
+
+4. Bosphor Line Logistics, a freight company headquartered in Istanbul.
+
+5. Corrin Mercantile Bank, a small private bank located in Dubai. Corrin Mercantile Bank processed transfers for Kasterline Trading despite red flags in the supporting documents.
+
+Findings
+
+Viktor Halloran met with Lina Petravicius in Riga in February to agree specifications for the lathes. Following that meeting, Amberway Components shipped the goods to Bosphor Line Logistics in Istanbul. Emre Taskiran relabelled the crates and forwarded them to a warehouse leased by Kasterline Trading.
+
+In April, Kasterline Trading acquired a controlling stake in Duvane Agricultural Partners. Sabine Okonkwo-Reyes then routed payments for the lathes through Duvane Agricultural Partners to make them appear to be grain purchases. Corrin Mercantile Bank cleared the transfers.
+
+A compliance officer at Corrin Mercantile Bank, Yusuf Demirel, raised an internal alert about the transfers in May. Demirel resigned from Corrin Mercantile Bank in June. His alert was later provided to the Office of Financial Restrictions.
+
+Effect of designation
+
+All property and interests in property of the designated persons within Aldermark are blocked. Aldermark persons are prohibited from dealing with them. Corrin Mercantile Bank must freeze accounts held for the designated persons and report them within ten days.
+
+Not designated
+
+Marta Ellingsen, an independent auditor who reviewed Duvane Agricultural Partners' accounts, is named in this notice for context only. The Office makes no finding against her.
+
+This notice is fiction. Aldermark, its Office of Financial Restrictions, and every person and company named here are invented for Trapline's examples. Real cities are used only as settings.
