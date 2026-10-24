@@ -27,8 +27,9 @@ The point is to make link analysis usable without a link-analysis toolchain. If 
 - **Interactive force-directed graph** — built on D3.js; node size reflects how central a node is, and confidence is shown visually.
 - **Social network analysis, computed for you** — degree centrality, betweenness, closeness, eigenvector centrality, PageRank, and clustering coefficient, all calculated in-browser.
 - **Cleanup tools** — flag anomalies, and detect and merge duplicate entities.
+- **Edit entities** — fix what extraction got wrong: rename an entity, change its type, or delete it (with its connections) from the detail panel. Metrics, flags, and duplicate suggestions recompute after every edit. Renaming onto an existing entity's name is refused rather than merged; combine entities in the Dupes tab.
 - **Pin and arrange** — double-click nodes to pin them and lay the network out the way you want.
-- **Exports** — CSV (nodes + edges, with SNA metrics), Obsidian-ready Markdown, and raw JSON.
+- **Exports** — CSV (nodes + edges, with SNA metrics), Obsidian-ready Markdown, raw JSON, and GEXF 1.3 for [Gephi](https://gephi.org/) (nodes carry type, confidence, mentions, description, and every SNA metric; edges carry the relationship label and strength as weight).
 
 ---
 
@@ -72,9 +73,9 @@ That's the whole setup. No build step, no server, and — in offline mode — no
 
 - **Analyze text** — paste an article, report, or document (works best with 200–2000 words of continuous prose) and click Analyse.
 - **Read the graph** — larger nodes are more central; use the SNA metrics to sort by betweenness or PageRank to find the actors that hold the network together.
-- **Refine** — review flagged anomalies and merge duplicate entities to clean up extraction noise.
+- **Refine** — review flagged anomalies, merge duplicate entities, and click an entity then ✎ to rename, retype, or delete it.
 - **Arrange** — double-click nodes to pin them in place.
-- **Export** — send the network to CSV, Obsidian, or JSON for downstream work.
+- **Export** — send the network to CSV, Obsidian, JSON, or Gephi (GEXF) for downstream work.
 
 ---
 
@@ -96,7 +97,7 @@ Trapline v1 is an honest proof-of-concept of the text → graph pipeline, not a 
 - **Extraction is imperfect.** Offline mode uses pattern- and rule-based NLP (compromise.js) and will miss entities or relationships that don't fit its patterns; coreference resolution is heuristic and can mis-attribute pronouns. Verify findings against the source.
 - **Small local models hallucinate.** A 3–4B model will occasionally invent entities or relationships not present in the text. Larger or remote models reduce this but don't eliminate it.
 - **LLM input is capped at 5,000 characters.** In LLM mode, longer text is truncated to the first 5,000 characters (you'll see a warning). Offline mode reads the full text. The cap is lifted in v2's server-side pipeline.
-- **No manual entity editing yet.** You can merge detected duplicates, but renaming, retyping, or hand-correcting entities is planned, not present.
+- **Edits are not undoable and not saved.** Deleting an entity asks first but can't be reversed, and running Analyse again starts over from the text. Export to keep a cleaned-up network (Trapline cannot load an export back in yet). You can only merge entities that the Dupes tab groups together.
 
 ---
 

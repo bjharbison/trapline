@@ -15,5 +15,7 @@ bash tests/run_all.sh
 | `test_extraction_units.py` | Offline extraction functions called directly: whole-token entity matching, conservative pronoun resolution, name cleaning and the non-entity stoplist, no self-loops, and no false merges. |
 | `test_providers.py` | Every LLM provider preset, using mocked APIs. Covers URLs, headers, body quirks, model listing, key errors, and that the key is never stored. |
 | `test_egress.py` | The panel warns whenever the endpoint isn't on this machine. |
+| `test_gexf.py` | GEXF export through the real menu, parsed with Python's XML parser: structure, counts, every node attribute, edge label/weight, and hostile strings (markup, quotes, XML-illegal characters) round-tripping as text. |
+| `test_editing.py` | Rename, retype and delete from the detail panel: stable ids, name-collision refusal (no silent merge), recomputed metrics/flags/dupes, pins kept, and a hostile name rendered as text in every panel. |
 
 **Changing the baseline.** If an extraction change is intended, run `python3 tests/test_offline_smoke.py --update`. Commit the new baseline, and paste the +/- diff from the run before into the PR so the change can be reviewed.
