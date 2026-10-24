@@ -761,7 +761,10 @@ function verifyEvidence(given, sourceText, sName, tName) {
   const folded = ' ' + foldText(sourceText) + ' ';
   (Array.isArray(given)?given:[given]).forEach(e=>{
     const f = typeof e==='string' ? foldText(e) : '';
-    if (f.length >= 12 && folded.includes(' '+f+' ')) { const l={evidence:out}; addEvidence(l, e); }
+    // Verbatim in the text, and about at least one of the two entities (the other may be "the firm" or "she") —
+    // a true but unrelated fragment is not evidence.
+    const names = [sName, tName].filter(Boolean).map(foldText);
+    if (f.length >= 12 && folded.includes(' '+f+' ') && (!names.length || names.some(n => (' '+f+' ').includes(' '+n+' ')))) { const l={evidence:out}; addEvidence(l, e); }
   });
   if (!out.length && sName && tName) {
     const s=foldText(sName), t=foldText(tName);
@@ -866,6 +869,10 @@ function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(
 // Escape any string derived from analyzed text before it touches innerHTML.
 // Analyzed content may be hostile — a crafted entity name must render as text, never execute.
 function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// A value inside an inline handler attribute: JSON string literal, then HTML-escaped. The attribute parser
+// decodes entities before the JS runs, so escaping only quotes is not enough ("&quot;" in a label would decode
+// into a real quote and end the string). After decoding, JS sees exactly the JSON literal.
+function jsAttr(v) { return esc(JSON.stringify(String(v??''))); }
 // CSV cell: double embedded quotes (RFC 4180) and neutralize spreadsheet formula injection (=,+,-,@).
 function csvCell(v) { v=String(v??''); if(/^[=+\-@\t\r]/.test(v)) v="'"+v; return '"'+v.replace(/"/g,'""')+'"'; }
 function dl(content, filename, mime='text/plain') {
@@ -953,9 +960,9 @@ function addEvidence(link, sent) {
   link.evidence = link.evidence || [];
   if (link.evidence.length < EVIDENCE_MAX && !link.evidence.includes(sent)) link.evidence.push(sent);
 }
-// Sentences with their character offsets, so a regex match can be traced back to the sentence it sits in.
 // One cell/attribute for exports: sentences joined with " | ".
 function evidenceText(l) { return (Array.isArray(l.evidence)?l.evidence:[]).filter(e=>typeof e==='string').join(' | '); }
+// Sentences with their character offsets, so a regex match can be traced back to the sentence it sits in.
 function splitSentences(text) {
   const out = []; let pos = 0;
   for (const s of text.match(/[^.!?]+(?:[.!?]+|$)/g) || [text]) { out.push({text:s, start:pos, end:pos+s.length}); pos += s.length; }
@@ -1412,7 +1419,8 @@ async function runAnalysis() {
     const dupes  = findDupes(analysis.nodes);
 
     state.analysis=analysis; state.sna=sna; state.flags=flags; state.dupes=dupes;
-    state.selectedNode=null; state.pinnedNodes={}; state.editing=false;
+    state.selectedNode=null; state.selectedLink=null; state.pinnedNodes={}; state.editing=false;
+    document.getElementById('detail').style.display='none';
 
     renderAll();
     setStatus('READY'); setStep('');
@@ -1521,7 +1529,7 @@ function renderFlags() {
         <span style="font-size:.62rem;font-weight:700;color:${f.color}">${f.title}</span>
       </div>
       <div style="font-size:.59rem;color:#4A7090;line-height:1.65">${esc(f.desc)}</div>
-      ${f.node_id?`<button class="btn-sm" onclick="selectNodeById('${f.node_id}')" style="margin-top:5px;color:${f.color};border-color:${f.color}44">→ Show entity</button>`:''}
+      ${f.node_id?`<button class="btn-sm" onclick="selectNodeById(${jsAttr(f.node_id)})" style="margin-top:5px;color:${f.color};border-color:${f.color}44">→ Show entity</button>`:''}
     `;
     list.appendChild(d);
   });
@@ -1636,7 +1644,7 @@ function renderLinkDetail(el) {
   const [s,t]=endIds(l), byId=Object.fromEntries(state.analysis.nodes.map(n=>[n.id,n]));
   const S=byId[s]||{name:s,type:'other'}, T=byId[t]||{name:t,type:'other'};
   const conf=CONF_COLORS[l.confidence]||'#FFB830', undirected=l.relationship==='co-occurs';
-  const end=(n,id)=>`<button class="btn-sm" onclick="selectNodeById('${esc(id)}')" style="display:flex;align-items:center;gap:6px;width:100%;text-align:left;color:#C8E0EE;font-weight:600;font-size:.64rem;padding:6px 8px" title="Open entity"><span style="width:7px;height:7px;border-radius:50%;background:${TYPE_COLORS[n.type]||'#888'};flex-shrink:0"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.name)}</span><span style="color:#3A5A72">→</span></button>`;
+  const end=(n,id)=>`<button class="btn-sm" onclick="selectNodeById(${jsAttr(id)})" style="display:flex;align-items:center;gap:6px;width:100%;text-align:left;color:#C8E0EE;font-weight:600;font-size:.64rem;padding:6px 8px" title="Open entity"><span style="width:7px;height:7px;border-radius:50%;background:${TYPE_COLORS[n.type]||'#888'};flex-shrink:0"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.name)}</span><span style="color:#3A5A72">→</span></button>`;
   const ev=Array.isArray(l.evidence)?l.evidence.filter(e=>typeof e==='string'&&e.trim()):[];
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
@@ -1683,7 +1691,7 @@ function renderDetail() {
       <div style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:.53rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:${col}22;border:1px solid ${col}44;color:${col}">${esc(n.type)}</div>
       <div style="display:flex;gap:5px">
         <button class="btn-sm ${state.editing?'active':''}" onclick="toggleEdit()" title="Edit entity">✎</button>
-        <button class="btn-sm ${isPinned?'active':''}" onclick="togglePin('${n.id}')" style="${isPinned?'color:#FFB830;border-color:#FFB830':''}">📌</button>
+        <button class="btn-sm ${isPinned?'active':''}" onclick="togglePin(${jsAttr(n.id)})" style="${isPinned?'color:#FFB830;border-color:#FFB830':''}">📌</button>
         <button class="btn-sm" onclick="closeDetail()">✕</button>
       </div>
     </div>
@@ -1714,7 +1722,7 @@ function renderDetail() {
       ${sBar('Clustering',m.clustering,'#A855F7')}
     </div>
     <div class="detail-label" style="margin-bottom:7px">Connections (${conns.length})</div>
-    ${conns.map(c=>`<div class="conn-row" onclick="selectLinkByKey(${JSON.stringify(c.key).replace(/</g,'\\u003c').replace(/"/g,'&quot;')})" title="Show evidence">
+    ${conns.map(c=>`<div class="conn-row" onclick="selectLinkByKey(${jsAttr(c.key)})" title="Show evidence">
       <span style="color:#3A5A72;flex-shrink:0;margin-top:1px">${c.dir}</span>
       <div style="flex:1;min-width:0"><div style="font-size:.62rem;color:#C8E0EE;font-weight:600">${esc(c.name||'?')}</div><div style="font-size:.56rem;color:#4A7090;margin-top:1px">${esc(c.rel)}</div></div>
       <span style="font-size:.52rem;color:${c.ev?'#4A7090':'#3A5A72'};flex-shrink:0" title="${c.ev} supporting sentence${c.ev!==1?'s':''}">${c.ev?'❝'+c.ev:'—'}</span>

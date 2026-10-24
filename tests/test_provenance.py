@@ -15,6 +15,7 @@ from harness import open_page, check, failures
 
 TEXT = (pathlib.Path(__file__).parent / "fixtures" / "offline_sample.txt").read_text()
 HOSTILE = '<img src=x onerror=alert(1)> & "quotes"'
+ENTITY_LABEL = 'x&quot;);window.__pwned=1;//&#39;'  # decoded by the attribute parser before the handler's JS runs
 FOLD = "s => s.toLowerCase().replace(/[^\\p{L}\\p{M}\\p{N}]+/gu,' ').trim()"
 LOAD = """(g) => { state.analysis = g; state.selectedNode = null; state.selectedLink = null; state.pinnedNodes = {}; refreshAfterEdit(); }"""
 
@@ -30,6 +31,7 @@ LLM_RAW = {
         {"source": "hale", "target": "varga", "relationship": "reports to", "evidence": "Hale reports to Varga."},
         {"source": "ng", "target": "vienna", "relationship": "located in", "evidence": ["The firm is based in Vienna.", 7, "The firm is based in Vienna.", "x"]},
         {"source": "hale", "target": "delta", "relationship": "leads", "evidence": HOSTILE + " Marcus Hale leads Delta Freight."},
+        {"source": "varga", "target": "vienna", "relationship": "lives in", "evidence": "Northgate Holdings acquired Delta Freight last year."},
     ],
 }
 
@@ -83,6 +85,13 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape")
     check(pg.evaluate("!state.selectedLink && !state.selectedNode"), "Esc closes the link detail")
 
+    print("new analysis clears the link selection")
+    pg.evaluate("selectLink(state.analysis.links[0])")
+    prev = pg.evaluate("state.analysis.id")
+    pg.click("#btn-analyse")
+    pg.wait_for_function("id => state.analysis.id !== id && d3sim.alpha() < d3sim.alphaMin()", arg=prev, timeout=30000)
+    check(pg.evaluate("state.selectedLink === null") and pg.evaluate("document.getElementById('detail').style.display") == "none", "re-running Analyse drops the selected link and hides the panel")
+
     print("LLM evidence verification")
     g = pg.evaluate("([raw, src]) => parseLLMResponse(JSON.stringify(raw), src)", [LLM_RAW, SRC])
     ev = {(l["source"], l["target"]): l["evidence"] for l in g["links"]}
@@ -91,6 +100,7 @@ with sync_playwright() as p:
     check(ev[("hale", "varga")] == [], "invented quote with no shared sentence → no evidence")
     check(ev[("ng", "vienna")] == ["The firm is based in Vienna."], f"arrays are filtered, deduped, non-strings dropped ({ev[('ng','vienna')]})")
     check(ev[("hale", "delta")] == ["Marcus Hale leads Delta Freight."], "hostile non-matching quote → located sentence instead")
+    check(ev[("varga", "vienna")] == [], "a verbatim quote naming neither entity is not evidence")
     pg.evaluate(LOAD, g)
     pg.evaluate("selectLinkByKey('hale|varga|reports to')")
     check(pg.evaluate("document.querySelector('#detail').textContent.includes('unverified')"), "missing LLM evidence is called unverified in the panel")
@@ -99,7 +109,8 @@ with sync_playwright() as p:
     h = {"id": "h", "title": "h", "summary": "", "source": "test",
          "nodes": [{"id": "a", "name": "A", "type": "person", "confidence": "high", "mentions": 1, "description": ""},
                    {"id": "b", "name": "B", "type": "org", "confidence": "high", "mentions": 1, "description": ""}],
-         "links": [{"source": "a", "target": "b", "relationship": "pays <b>", "strength": 2, "confidence": "high", "evidence": [HOSTILE]}]}
+         "links": [{"source": "a", "target": "b", "relationship": "pays <b>", "strength": 2, "confidence": "high", "evidence": [HOSTILE]},
+                   {"source": "a", "target": "b", "relationship": ENTITY_LABEL, "strength": 1, "confidence": "low", "evidence": []}]}
     pg.evaluate(LOAD, h)
     pg.evaluate("selectLinkByKey('a|b|pays <b>')")
     check(pg.evaluate("document.querySelector('#detail blockquote.evidence').textContent") == HOSTILE, "evidence text round-trips")
@@ -109,6 +120,10 @@ with sync_playwright() as p:
     check(pg.evaluate("!document.querySelector('#detail b')"), "no element is created from a hostile relationship label")
     pg.click("#detail .conn-row >> nth=0")
     check(pg.evaluate("state.selectedLink === 'a|b|pays <b>'"), "connection row with hostile label still opens its link")
+    pg.evaluate("selectNodeById('a')")
+    pg.click("#detail .conn-row >> nth=1")
+    check(pg.evaluate("window.__pwned === undefined"), "HTML-entity payload in a label does not execute from the connection row")
+    check(pg.evaluate("state.selectedLink") == "a|b|" + ENTITY_LABEL, "the entity-bearing label round-trips as the link key")
 
     print("exports carry evidence")
     pg.evaluate(LOAD, g)

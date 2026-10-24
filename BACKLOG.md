@@ -73,10 +73,11 @@ _None right now. GEXF export shipped; see Shipped above._
 **Recommendation:** v1.x. Keep it an explicit two-entity pick, never name-similarity automation.
 
 > **Shipped in v1.x (no longer backlog):**
-> - **Evidence on every link.** Offline links carry the sentence(s) the pattern or co-occurrence matched in (max 3, 320 chars each, as analyzed after pronoun resolution). LLM links carry the model's quoted sentence only when it appears verbatim in the text (whitespace/case/punctuation-insensitive); otherwise the first sentence(s) naming both entities, otherwise nothing, and the panel says so. Click a link on the canvas or a connection row to read it. Exported as an `evidence` CSV column, GEXF edge attribute, and a Markdown "Evidence" section.
+> - **Evidence on every link.** Offline links carry the sentence(s) the pattern or co-occurrence matched in (max 3, 320 chars each, as analyzed after pronoun resolution). LLM links carry the model's quoted sentence only when it appears verbatim in the text (whitespace/case/punctuation-insensitive) and names at least one of the two entities; otherwise the first sentence(s) naming both entities, otherwise nothing, and the panel says so. Click a link on the canvas or a connection row to read it. Exported as an `evidence` CSV column, GEXF edge attribute, and a Markdown "Evidence" section.
 > - **Graph search.** Search and the type filter dim non-matching nodes to 12% and links to 35%/6% depending on how many ends match; Enter zooms to the most-mentioned match and selects it; Esc clears.
 > - **Keyboard shortcuts + help modal** (`?`).
 
 ### Still open
 - **Evidence for merged entities.** Merging in Dupes rewires links but does not combine the evidence of two links that collapse onto the same pair — the first one wins. Minor; the sentences are still in the text.
+- **LLM evidence needs a name.** A model quote that refers to both entities only by pronoun or description ("She bought the firm") is dropped and the fallback (a sentence naming both) usually finds nothing, so a real link can show no evidence. Verifying anaphora is v2 territory (spaCy coreference).
 - **Evidence is per link, not per mention.** A co-occurrence seen in 5 sentences keeps 3. Enough to check the link; not a concordance.
