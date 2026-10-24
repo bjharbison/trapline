@@ -26,6 +26,8 @@ Features considered but not in the current v1 build. Captured so they aren't los
 
 ## UI
 
+> **Shipped in v1.x:** offline build (`build/offline.py`, every library inlined, no network on load).
+
 > **Shipped in v1.x:** phone layout (panel above the graph, full-width canvas, Export reachable) and a ⋯ menu on every entity card (pin / edit / delete).
 
 - **Ignore list.** A field for names to drop before extraction (a report's publisher, a recurring boilerplate org). Human-supplied only — never an "author detection" heuristic, which would misfire on the reports where the publisher is a subject. Add when it bites a second time; Delete covers it today.

@@ -76,6 +76,16 @@ Want something to try first? [`examples/`](examples/) has three short, fictional
 
 ---
 
+### Fully offline build
+
+The single file loads three libraries (D3, compromise.js, pdf.js) and two fonts from CDNs when it opens, so "offline" means the *analysis* is offline, not the first page load. For a machine with no internet at all, build a copy with everything inlined:
+
+```bash
+python3 build/offline.py        # writes trapline-offline.html (~2 MB), standard library only
+```
+
+It fetches the exact versions the page pins, from the same URLs, so the two builds never drift; pdf.js's worker is inlined too and handed over as a `blob:` URL. The fonts are dropped in favour of the system monospace. Copy the result anywhere — a USB stick, an air-gapped laptop — and double-click it. The built file is not committed (it is in `.gitignore`); rebuild it when the pinned versions change, or attach it to a release.
+
 ## Usage
 
 - **Analyze text** — paste an article, report, or document (works best with 200–2000 words of continuous prose) and click Analyse.
