@@ -223,7 +223,11 @@ blockquote.evidence{margin:0 0 6px;padding:7px 9px 7px 10px;border-left:2px soli
                   title="How do I get an API key? Click for steps">?</button></div>
               <div id="key-help" class="notice notice-info" style="display:none;font-size:.56rem"></div>
               <input type="password" id="llm-key" class="inp" placeholder="sk-… or blank for local"
-                autocomplete="off" style="font-size:.63rem" />
+                autocomplete="off" style="font-size:.63rem" oninput="syncKeyStore()" />
+              <label for="llm-key-keep" style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:.56rem;color:#4A7090;cursor:pointer;text-transform:none;letter-spacing:0">
+                <input type="checkbox" id="llm-key-keep" onchange="syncKeyStore()" style="accent-color:#00C8FF;margin:0" />
+                Keep key for this tab — survives refresh, gone when the tab closes
+              </label>
             </div>
             <div style="display:flex;gap:6px;margin-top:6px">
               <button class="btn-sm" onclick="testConnection()" id="btn-test" style="flex:1">⚡ Test Connection</button>
@@ -462,6 +466,7 @@ function pickProvider(p) {
   document.getElementById('llm-model').value = '';
   document.getElementById('llm-model-select').style.display = 'none';
   document.getElementById('llm-key').value = '';   // never carry one provider's key to another
+  syncKeyStore();
   document.getElementById('conn-status').textContent = '';
   updateEgressNotice();
   saveSettings();
@@ -618,8 +623,8 @@ function updateEgressNotice() {
   if (sel.value!==prov && !(sel.value==='custom' && !url)) sel.value = prov;
   const needsKey = prov!=='local' && prov!=='custom';
   document.getElementById('llm-key-hint').textContent = needsKey
-    ? '(required — used for this tab only, never saved)'
-    : prov==='local' ? '(optional — leave blank for Ollama)' : '(if your endpoint needs one — never saved)';
+    ? '(required — used for this tab only, not saved unless you tick Keep)'
+    : prov==='local' ? '(optional — leave blank for Ollama)' : '(if your endpoint needs one — not saved unless you tick Keep)';
   document.getElementById('llm-key').placeholder = needsKey ? 'paste your API key' : 'sk-… or blank for local';
   document.getElementById('llm-model').placeholder = (PROVIDERS[prov]||PROVIDERS.custom).hint;
   document.getElementById('small-model-notice').style.display = prov==='local' ? 'block' : 'none';
@@ -684,7 +689,18 @@ function saveSettings() {
   } catch {}
 }
 
+// The API key is memory-only by default. With "Keep key for this tab" ticked it goes to sessionStorage: survives
+// a refresh in this tab, never shared with other tabs or sites, gone when the tab closes. Never localStorage —
+// on a shared origin (GitHub Pages, file://) that would be readable by every other page there, indefinitely.
+function syncKeyStore() {
+  const key=document.getElementById('llm-key').value.trim(), keep=document.getElementById('llm-key-keep').checked;
+  try { if(keep&&key) sessionStorage.setItem('trapline_llm_key', key); else sessionStorage.removeItem('trapline_llm_key'); } catch {}
+}
 function loadSettings() {
+  try {
+    const k=sessionStorage.getItem('trapline_llm_key');
+    if(k){ document.getElementById('llm-key').value=k; document.getElementById('llm-key-keep').checked=true; }
+  } catch {}
   try {
     const e=localStorage.getItem('trapline_engine'); if(e) setEngine(e);
     const u=localStorage.getItem('trapline_llm_url'); if(u) document.getElementById('llm-url').value=u;
