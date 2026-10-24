@@ -15,7 +15,7 @@ with sync_playwright() as p:
     pg.wait_for_function("d3sim && d3sim.alpha() < d3sim.alphaMin()", timeout=30000)
     pg.wait_for_timeout(800)
     fit = pg.evaluate(K)
-    check(fit != 1, f"view auto-fits when the layout settles (k={fit:.3f})")
+    check(fit < 0.74, f"view auto-fits when the layout settles (k={fit:.3f})")
     for _ in range(2):
         pg.click("#zoom-ctrl .zoom-btn >> nth=0"); pg.wait_for_timeout(400)
     zoomed = pg.evaluate(K)

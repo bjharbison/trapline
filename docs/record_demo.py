@@ -4,7 +4,7 @@ Dev tooling only. Needs tests/vendor.sh to have run, Playwright + Chromium, and 
 For the real UI fonts, install Oxanium and JetBrains Mono locally (the harness blocks Google Fonts).
 Run: python3 docs/record_demo.py
 """
-import pathlib, shutil, subprocess, sys, tempfile
+import pathlib, subprocess, sys, tempfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tests"))
 from harness import open_page

@@ -97,7 +97,7 @@ flowchart LR
     H --> I[Export: CSV, Markdown, JSON]
 ```
 
-- **Input.** Uploaded files are read in the browser and never uploaded. CSV rows are turned into labelled lines of text. PDFs go through pdf.js, which pulls out the text layer only.
+- **Input.** Uploaded files are read in the browser and never uploaded. CSV rows are turned into labelled sentences. PDFs go through pdf.js, which pulls out the text layer only.
 - **Offline engine.** A cautious pronoun pass first: a sentence-initial *He* or *She* is replaced only when exactly one matching person was named in the sentence before. compromise.js then tags people, organizations, places and other noun phrases, and a few regexes add dates and capitalized names it missed. Relationships come from verb patterns such as *founded*, *works for* or *met with*. Entities named in the same sentence get a weaker co-occurrence link.
 - **LLM engine.** The text goes to the endpoint in the config panel with a prompt asking for strict JSON. The reply is cleaned up before use: code fences are stripped, cut-off JSON is salvaged where possible, types and confidence values are limited to known values, and links to unknown entities or self-links are dropped.
 - **Metrics.** Degree, betweenness, closeness, eigenvector, PageRank and clustering are computed in plain JavaScript. They are recomputed after every merge.

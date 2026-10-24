@@ -8,7 +8,7 @@ Between June and September, analysts at Northfold Security tracked a phishing an
 
 Key findings
 
-COPPER LANTERN targeted Halvard Freight, a forwarding company headquartered in Gdansk, in early June. The intrusion began with a phishing email that impersonated Ostrava Customs Brokers, a regular business partner. An employee in the Halvard Freight finance team opened the attachment, which installed a loader we track as GLASSWICK.
+COPPER LANTERN targeted Halvard Freight, a forwarding company headquartered in Gdansk, in early June. The intrusion began with a phishing email that impersonated Tessaly Customs Brokers, a regular business partner. An employee in the Halvard Freight finance team opened the attachment, which installed a loader we track as GLASSWICK.
 
 GLASSWICK contacted infrastructure registered through Brightmoor Hosting, a small provider based in Chisinau. Brightmoor Hosting has appeared in two earlier campaigns. We have no evidence that the provider knowingly supports the operators, but its abuse desk did not respond to takedown requests.
 
