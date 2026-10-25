@@ -52,10 +52,30 @@ textarea.inp{resize:none;line-height:1.65}
 
 .entity-card{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#101820;border:1px solid #1A2A38;border-radius:7px;margin-bottom:3px;cursor:pointer;transition:all .15s;font-size:.62rem}
 .entity-card:hover,.entity-card.selected{background:rgba(0,200,255,.07);border-color:#00C8FF}
+.card-menu-btn{flex-shrink:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:5px;border:1px solid transparent;background:none;color:#3A5A72;font-size:.7rem;line-height:1;cursor:pointer;letter-spacing:0}
+.card-menu-btn:hover,.entity-card:hover .card-menu-btn{color:#00C8FF;border-color:#1A2A38}
+@media (hover:none){.card-menu-btn{color:#4A7090;border-color:#1A2A38}}
+#ctx-menu{position:fixed;display:none;background:#0C1118;border:1px solid #1A2A38;border-radius:9px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.6);min-width:150px;z-index:400;animation:fadeIn .12s ease}
+#ctx-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:9px 13px;border:none;background:none;color:#C8E0EE;font-size:.64rem;text-align:left;cursor:pointer}
+#ctx-menu button:hover{background:rgba(0,200,255,.07)}
+#ctx-menu button.danger{color:#FF6B35;border-top:1px solid #1A2A38}
 .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
 #detail{position:absolute;right:0;top:0;bottom:0;width:272px;background:#0C1118;border-left:1px solid #1A2A38;padding:14px 13px;overflow-y:auto;z-index:40;animation:slideIn .2s ease}
 @media (max-width:640px){#detail{position:fixed;top:50px;bottom:46px;left:0;right:0;width:auto;border-left:none;z-index:150}#toast{white-space:normal!important;width:max-content;max-width:calc(100vw - 32px);text-align:center}}
+/* Phone: panel above the graph instead of beside it. The panel scrolls as one column (config, tabs, list),
+   the graph takes the full width, and the stats bar keeps Export reachable by dropping the bridge stat. */
+@media (max-width:640px){
+  #main{flex-direction:column}
+  #left{width:100%;flex:0 0 auto;max-height:52vh;overflow-y:auto;border-right:none;border-bottom:1px solid #1A2A38}
+  #left>*{flex-shrink:0}
+  #panel-entities,#panel-flags,#panel-dupes{flex:none!important;overflow:visible!important}
+  #topbar{padding:0 12px;gap:10px}
+  #topbar .legend,#topbar .subtitle{display:none!important}
+  #mode-badge{white-space:nowrap}
+  #bottombar{padding:0 10px;gap:8px}
+  #bottombar .stat-bridge,#bottombar .sep-bridge{display:none}
+}
 .detail-label{font-size:.54rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#3A5A72;margin-bottom:6px}
 #help{position:fixed;inset:0;background:rgba(6,10,15,.78);z-index:8000;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s ease}
 #help-box{background:#0C1118;border:1px solid #1A2A38;border-radius:12px;padding:18px 20px;width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.7)}
@@ -130,7 +150,7 @@ blockquote.evidence{margin:0 0 6px;padding:7px 9px 7px 10px;border-left:2px soli
 
   <div id="topbar">
     <div class="logo">⬡ TRAPLINE</div>
-    <div style="font-size:.55rem;color:#3A5A72;letter-spacing:.08em">Hybrid · Local + LLM</div>
+    <div class="subtitle" style="font-size:.55rem;color:#3A5A72;letter-spacing:.08em;white-space:nowrap">Hybrid · Local + LLM</div>
     <div id="mode-badge" class="offline-badge">⬡ LOCAL NLP</div>
     <div style="width:1px;height:26px;background:#1A2A38"></div>
     <div style="display:flex;align-items:center;gap:7px">
@@ -138,11 +158,13 @@ blockquote.evidence{margin:0 0 6px;padding:7px 9px 7px 10px;border-left:2px soli
       <span id="status-text" style="font-size:.6rem;color:#4A7090;letter-spacing:.1em">READY</span>
     </div>
     <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+      <span class="legend" style="display:flex;gap:10px;align-items:center">
       <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#00C8FF;display:inline-block"></span>person</span>
       <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#00FF9D;display:inline-block"></span>org</span>
       <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#FFB830;display:inline-block"></span>place</span>
       <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#FF6B35;display:inline-block"></span>event</span>
       <span style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:#4A7090"><span style="width:6px;height:6px;border-radius:50%;background:#A855F7;display:inline-block"></span>other</span>
+      </span>
       <button class="btn-sm" id="btn-help" onclick="toggleHelp()" title="Help and keyboard shortcuts (?)" style="padding:3px 8px;margin-left:4px">?</button>
     </div>
   </div>
@@ -201,7 +223,11 @@ blockquote.evidence{margin:0 0 6px;padding:7px 9px 7px 10px;border-left:2px soli
                   title="How do I get an API key? Click for steps">?</button></div>
               <div id="key-help" class="notice notice-info" style="display:none;font-size:.56rem"></div>
               <input type="password" id="llm-key" class="inp" placeholder="sk-… or blank for local"
-                autocomplete="off" style="font-size:.63rem" />
+                autocomplete="off" style="font-size:.63rem" oninput="syncKeyStore()" />
+              <label for="llm-key-keep" style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:.56rem;color:#4A7090;cursor:pointer;text-transform:none;letter-spacing:0">
+                <input type="checkbox" id="llm-key-keep" onchange="syncKeyStore()" style="accent-color:#00C8FF;margin:0" />
+                Keep key for this tab — survives refresh, gone when the tab closes
+              </label>
             </div>
             <div style="display:flex;gap:6px;margin-top:6px">
               <button class="btn-sm" onclick="testConnection()" id="btn-test" style="flex:1">⚡ Test Connection</button>
@@ -305,8 +331,8 @@ blockquote.evidence{margin:0 0 6px;padding:7px 9px 7px 10px;border-left:2px soli
         <div class="stat">Edges <span id="stat-edges">0</span></div>
         <div class="sep"></div>
         <div class="stat">Density <span id="stat-density">—</span></div>
-        <div class="sep"></div>
-        <div class="stat">Top bridge <span id="stat-bridge" style="color:#FF6B35">—</span></div>
+        <div class="sep sep-bridge"></div>
+        <div class="stat stat-bridge">Top bridge <span id="stat-bridge" style="color:#FF6B35">—</span></div>
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
           <div style="position:relative">
             <div id="export-menu" style="display:none">
@@ -322,6 +348,12 @@ blockquote.evidence{margin:0 0 6px;padding:7px 9px 7px 10px;border-left:2px soli
       </div>
     </div>
   </div>
+</div>
+
+<div id="ctx-menu" role="menu">
+  <button onclick="ctxAction('pin')"><span id="ctx-pin-ico">📌</span><span id="ctx-pin-label">Pin</span></button>
+  <button onclick="ctxAction('edit')"><span>✎</span>Edit</button>
+  <button class="danger" onclick="ctxAction('delete')"><span>✕</span>Delete</button>
 </div>
 
 <div id="help" style="display:none" onclick="if(event.target===this)toggleHelp()">
@@ -376,7 +408,7 @@ const CONF_COLORS = {high:'#00FF9D',medium:'#FFB830',low:'#FF6B35'};
 
 let state = {
   analysis: null, sna: null, flags: [], dupes: [],
-  selectedNode: null, selectedLink: null, pinnedNodes: {}, editing: false,
+  selectedNode: null, selectedLink: null, pinnedNodes: {}, editing: false, menuNode: null,
   tab: 'entities', search: '', filterType: 'all',
   showExport: false,
   engine: 'local',
@@ -434,6 +466,7 @@ function pickProvider(p) {
   document.getElementById('llm-model').value = '';
   document.getElementById('llm-model-select').style.display = 'none';
   document.getElementById('llm-key').value = '';   // never carry one provider's key to another
+  syncKeyStore();
   document.getElementById('conn-status').textContent = '';
   updateEgressNotice();
   saveSettings();
@@ -590,8 +623,8 @@ function updateEgressNotice() {
   if (sel.value!==prov && !(sel.value==='custom' && !url)) sel.value = prov;
   const needsKey = prov!=='local' && prov!=='custom';
   document.getElementById('llm-key-hint').textContent = needsKey
-    ? '(required — used for this tab only, never saved)'
-    : prov==='local' ? '(optional — leave blank for Ollama)' : '(if your endpoint needs one — never saved)';
+    ? '(required — used for this tab only, not saved unless you tick Keep)'
+    : prov==='local' ? '(optional — leave blank for Ollama)' : '(if your endpoint needs one — not saved unless you tick Keep)';
   document.getElementById('llm-key').placeholder = needsKey ? 'paste your API key' : 'sk-… or blank for local';
   document.getElementById('llm-model').placeholder = (PROVIDERS[prov]||PROVIDERS.custom).hint;
   document.getElementById('small-model-notice').style.display = prov==='local' ? 'block' : 'none';
@@ -656,7 +689,18 @@ function saveSettings() {
   } catch {}
 }
 
+// The API key is memory-only by default. With "Keep key for this tab" ticked it goes to sessionStorage: survives
+// a refresh in this tab, never shared with other tabs or sites, gone when the tab closes. Never localStorage —
+// on a shared origin (GitHub Pages, file://) that would be readable by every other page there, indefinitely.
+function syncKeyStore() {
+  const key=document.getElementById('llm-key').value.trim(), keep=document.getElementById('llm-key-keep').checked;
+  try { if(keep&&key) sessionStorage.setItem('trapline_llm_key', key); else sessionStorage.removeItem('trapline_llm_key'); } catch {}
+}
 function loadSettings() {
+  try {
+    const k=sessionStorage.getItem('trapline_llm_key');
+    if(k){ document.getElementById('llm-key').value=k; document.getElementById('llm-key-keep').checked=true; }
+  } catch {}
   try {
     const e=localStorage.getItem('trapline_engine'); if(e) setEngine(e);
     const u=localStorage.getItem('trapline_llm_url'); if(u) document.getElementById('llm-url').value=u;
@@ -1364,9 +1408,18 @@ function parseCSV(text){
 }
 
 // PDF → text via pdf.js. Text-based PDFs only — scanned/image docs yield nothing (no OCR).
+// The offline build (build/offline.py) inlines pdf.js's worker as a text/plain block; it is served to
+// pdf.js from a blob: URL so no request leaves the machine. The CDN build fetches the matching worker.
+let pdfWorkerUrl=null;
+function pdfWorkerSrc(){
+  const inl=document.getElementById('pdf-worker-src');
+  if(!inl) return 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  if(!pdfWorkerUrl) pdfWorkerUrl=URL.createObjectURL(new Blob([inl.textContent],{type:'text/javascript'}));
+  return pdfWorkerUrl;
+}
 async function pdfToText(file){
   if(typeof pdfjsLib==='undefined') throw new Error('PDF library still loading — wait a moment and try again');
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  pdfjsLib.GlobalWorkerOptions.workerSrc=pdfWorkerSrc();
   const status=document.getElementById('file-status');
   const buf=await file.arrayBuffer();
   const pdf=await pdfjsLib.getDocument({data:buf}).promise;
@@ -1507,6 +1560,7 @@ function renderEntityList() {
         <div style="font-size:.5rem;color:#3A5A72">${n.mentions}×</div>
         ${state.pinnedNodes[n.id]?'<span style="color:#FFB830;font-size:.58rem">📌</span>':''}
         <div style="font-size:.52rem;color:#4A7090">${n.degree}↔</div>
+        <button class="card-menu-btn" title="Pin, edit or delete" aria-label="Entity actions" onclick="openCardMenu(event,${jsAttr(n.id)})">⋯</button>
       `;
       list.appendChild(card);
     });
@@ -1625,6 +1679,33 @@ function deleteEntity() {
   refreshAfterEdit();
   toast(`Deleted ${shortName(n.name)}`);
 }
+
+// ══════════════════════════════════════════════════════
+//  ENTITY CARD MENU (⋯) — pin / edit / delete without opening the detail panel.
+//  One shared menu, repositioned per card; the phone-friendly route to the same actions.
+// ══════════════════════════════════════════════════════
+function openCardMenu(e, id) {
+  e.stopPropagation();
+  const menu=document.getElementById('ctx-menu');
+  if(state.menuNode===id&&menu.style.display==='block'){closeCardMenu();return;}
+  state.menuNode=id;
+  const pinned=!!state.pinnedNodes[id];
+  document.getElementById('ctx-pin-label').textContent=pinned?'Unpin':'Pin';
+  menu.style.display='block';
+  const r=e.currentTarget.getBoundingClientRect(), mw=menu.offsetWidth, mh=menu.offsetHeight;
+  menu.style.left=Math.max(8,Math.min(r.right-mw,window.innerWidth-mw-8))+'px';
+  menu.style.top=(r.bottom+mh+8>window.innerHeight?r.top-mh-4:r.bottom+4)+'px';
+}
+function closeCardMenu() { document.getElementById('ctx-menu').style.display='none'; state.menuNode=null; }
+function ctxAction(a) {
+  const id=state.menuNode; closeCardMenu();
+  if(!id||!state.analysis?.nodes.some(n=>n.id===id))return;
+  if(a==='pin'){togglePin(id);return;}
+  selectNodeById(id);
+  if(a==='edit'){state.editing=true;renderDetail();document.getElementById('edit-name')?.focus();}
+  if(a==='delete')deleteEntity();
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#ctx-menu')&&!e.target.closest('.card-menu-btn'))closeCardMenu();});
 
 // ══════════════════════════════════════════════════════
 //  NODE SELECTION + DETAIL
@@ -1968,6 +2049,7 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();if(!document.getElementById('btn-analyse').disabled)runAnalysis();return;}
   if(e.key==='Escape'){
     if(document.getElementById('help').style.display!=='none'){toggleHelp(false);return;}
+    if(state.menuNode){closeCardMenu();return;}
     if(typing)return; // the search box handles its own Esc
     if(state.editing){toggleEdit();return;}
     if(state.selectedNode||state.selectedLink){closeDetail();return;}
