@@ -58,7 +58,7 @@ Then set the endpoint to `http://localhost:11434/v1/chat/completions` in Traplin
 >
 > **Remote endpoints:** if the model runs on another machine rather than `localhost`, that endpoint must accept cross-origin requests from a local file. For Ollama, set `OLLAMA_HOST=0.0.0.0` so it listens beyond localhost and `OLLAMA_ORIGINS=*` so it accepts the request, and reach it over a private network such as Tailscale rather than exposing the port to the internet.
 >
-> First load fetches D3.js, compromise.js, and the UI fonts from a CDN, then caches them. The text you analyze is never sent to those CDNs — see [Privacy](#privacy).
+> First load fetches D3.js, compromise.js, pdf.js, and the UI fonts from a CDN, then caches them. The text you analyze is never sent to those CDNs — see [Privacy](#privacy), or use the [fully offline build](#fully-offline-build) to skip the CDN entirely.
 
 ---
 
@@ -127,12 +127,13 @@ flowchart LR
 
 ## Privacy
 
-Trapline is built to keep sensitive material on your machine. What leaves your device depends entirely on which extraction engine you choose:
+Trapline is built to keep sensitive material on your machine. What leaves your device depends on which extraction engine you choose, plus one page-load request described at the end:
 
 - **Offline mode (default):** rule-based extraction runs entirely in your browser. Your text goes nowhere.
 - **Local LLM:** if you point Trapline at a model running on your own machine (Ollama, LM Studio, llama.cpp), your text goes only to that local endpoint and no further.
 - **Remote LLM (your choice):** if you configure a remote provider (OpenAI, Anthropic, Gemini, OpenRouter, xAI, or your own server elsewhere), your text is sent to that provider. This is the only mode in which your text leaves your machine, and it only happens if you set it up. Whenever the endpoint isn't on your own machine, the config panel shows a warning naming the host your text will go to. That includes a model on another computer on your LAN or Tailscale network.
-- **Stored settings:** your engine choice, endpoint URL, and model name are saved in the browser's `localStorage` for convenience. An API key, if you enter one, is used only for live requests and lives in the page only while the tab is open. If you tick **Keep key for this tab**, it is held in the browser's `sessionStorage` instead: it survives a refresh of that tab, is not visible to other tabs or sites, and is discarded when the tab closes. It is never written to `localStorage`.
+- **Stored settings:** your engine choice, endpoint URL, and model name are saved in the browser's `localStorage` for convenience. An API key, if you enter one, is used only for live requests and lives in the page only while the tab is open. If you tick **Keep key for this tab**, it is held in the browser's `sessionStorage` instead: it survives a refresh of that tab, is not visible to other tabs or to other websites, and is discarded when the tab closes. It is never written to `localStorage`. One caveat: when run from a local file, browsers give every `file://` page the same origin, so another local HTML file opened in that same tab could read the key. Close the tab when you're done.
+- **Page load:** the standard `trapline.html` fetches D3.js, compromise.js, pdf.js, and two fonts from CDNs (jsDelivr, cdnjs, Google Fonts) the first time it opens, then caches them. Those CDNs see an ordinary page request — your IP address and that you loaded these libraries — and nothing else; your text is never sent to them. If even that is too much, the [fully offline build](#fully-offline-build) inlines everything and makes no network requests at all.
 
 ---
 
