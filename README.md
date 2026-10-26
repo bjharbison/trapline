@@ -113,7 +113,7 @@ flowchart LR
     F --> G[Flags and duplicate suggestions]
     G --> H[D3 force graph, entity list, detail panel]
     H -.->|merge a duplicate| F
-    H --> I[Export: CSV, Markdown, JSON]
+    H --> I[Export: CSV, Markdown, JSON, GEXF]
 ```
 
 - **Input.** Uploaded files are read in the browser and never uploaded. CSV rows are turned into labelled sentences. PDFs go through pdf.js, which pulls out the text layer only.
@@ -152,10 +152,23 @@ Trapline v1 is an honest proof-of-concept of the text → graph pipeline, not a 
 
 Trapline ships in two stages:
 
-- **v1 — single-file HTML (current):** self-contained, in-browser, local extraction. This is the shipping prototype.
-- **v2 — Python + web frontend (next):** a proper rebuild with a FastAPI backend, real scraping, structured data-source plugins (Shodan, WiGLE, Censys, crt.sh), and `pip` / Docker distribution.
+- **v1 — single-file HTML:** self-contained, in-browser, local extraction. This is the shipping prototype, frozen on the [`release/v1`](https://github.com/bjharbison/trapline/tree/release/v1) branch; download `trapline.html` from there for the stable copy.
+- **v2 — Python + web frontend (in progress on `main`):** a proper rebuild with a FastAPI backend, real scraping, structured data-source plugins (Shodan, WiGLE, Censys, crt.sh), and `pip` / Docker distribution.
 
-<!-- TODO: link to a fuller ROADMAP.md if you want to publish one -->
+Smaller ideas and known rough edges are tracked in [`BACKLOG.md`](BACKLOG.md).
+
+---
+
+## Development
+
+The single file has no build step, but it does have a test suite: browser tests run in headless Chromium with Playwright, covering extraction, editing, every export, provider presets, key handling, the offline build, and an egress check that confirms nothing leaves the page. See [`tests/README.md`](tests/README.md) for what each test covers.
+
+```bash
+pip install playwright && python3 -m playwright install chromium
+bash tests/run_all.sh
+```
+
+`docs/record_demo.py` regenerates the demo GIF above.
 
 ---
 
