@@ -18,6 +18,7 @@ bash tests/run_all.sh
 | `test_view.py` | The graph fits itself to the view once when the layout settles. Clicking or pinning a node afterwards keeps the user's zoom. |
 | `test_gexf.py` | GEXF export through the real menu, parsed with Python's XML parser: structure, counts, every node attribute, edge label/weight, and hostile strings (markup, quotes, XML-illegal characters) round-tripping as text. |
 | `test_editing.py` | Rename, retype and delete from the detail panel: stable ids, name-collision refusal (no silent merge), recomputed metrics/flags/dupes, pins kept, and a hostile name rendered as text in every panel. |
+| `test_eval_score.py` | `eval/score.py`: matching rules on synthetic data, every gold file's integrity, report escaping, and the LLM path through the page against a mocked endpoint. |
 
 **Changing the baseline.** If an extraction change is intended, run `python3 tests/test_offline_smoke.py --update`. Commit the new baseline, and paste the +/- diff from the run before into the PR so the change can be reviewed.
 

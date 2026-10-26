@@ -1,0 +1,266 @@
+{
+  "status": "DRAFT - needs Brian's review",
+  "doc": "examples/investigative-report.txt",
+  "notes": [
+    "Fictional document from examples/. Stand-in set until the federal documents have their text added.",
+    "Lower-case 'the fund' and 'the commission' are not aliases (generic nouns). 'Ethics Commission' is.",
+    "Meridale Construction -- fund link rests on 'the firm that later won the largest restoration contract'; the contract is the fund's by context.",
+    "No relation for Rafael Duchene -- Lisbon: the text places the property venture in Lisbon, not Duchene."
+  ],
+  "entities": [
+    {
+      "name": "Larkmoor Harbor Restoration Fund",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Port Anselm",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Teodora Vass",
+      "type": "person",
+      "aliases": [
+        "Vass"
+      ]
+    },
+    {
+      "name": "Lucian Brandt",
+      "type": "person",
+      "aliases": [
+        "Brandt"
+      ]
+    },
+    {
+      "name": "Meridale Construction",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Oskar Melnik",
+      "type": "person",
+      "aliases": [
+        "Melnik"
+      ]
+    },
+    {
+      "name": "Greyfen Supply",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Valletta",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Mira Castellane",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "Talmont Advisory",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Luxembourg",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Rafael Duchene",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "Lisbon",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Hendrik Aalto",
+      "type": "person",
+      "aliases": [
+        "Aalto"
+      ]
+    },
+    {
+      "name": "Port Anselm Ethics Commission",
+      "type": "org",
+      "aliases": [
+        "Ethics Commission"
+      ]
+    },
+    {
+      "name": "Nadia Ferreol",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "Pellar Marine Works",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Ines Rourke",
+      "type": "person",
+      "aliases": [
+        "Rourke"
+      ]
+    },
+    {
+      "name": "East Pier Tenants Association",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Trapline",
+      "type": "other",
+      "aliases": []
+    }
+  ],
+  "relations": [
+    {
+      "source": "Larkmoor Harbor Restoration Fund",
+      "target": "Port Anselm",
+      "label": "rebuilding waterfront of"
+    },
+    {
+      "source": "Teodora Vass",
+      "target": "Larkmoor Harbor Restoration Fund",
+      "label": "founded; runs"
+    },
+    {
+      "source": "Teodora Vass",
+      "target": "Lucian Brandt",
+      "label": "appointed as treasurer; longtime associate"
+    },
+    {
+      "source": "Lucian Brandt",
+      "target": "Larkmoor Harbor Restoration Fund",
+      "label": "treasurer of"
+    },
+    {
+      "source": "Lucian Brandt",
+      "target": "Meridale Construction",
+      "label": "previously worked for"
+    },
+    {
+      "source": "Meridale Construction",
+      "target": "Port Anselm",
+      "label": "headquartered in"
+    },
+    {
+      "source": "Oskar Melnik",
+      "target": "Meridale Construction",
+      "label": "chief executive of"
+    },
+    {
+      "source": "Oskar Melnik",
+      "target": "Teodora Vass",
+      "label": "met"
+    },
+    {
+      "source": "Meridale Construction",
+      "target": "Larkmoor Harbor Restoration Fund",
+      "label": "won restoration contract"
+    },
+    {
+      "source": "Meridale Construction",
+      "target": "Greyfen Supply",
+      "label": "subcontracted to"
+    },
+    {
+      "source": "Greyfen Supply",
+      "target": "Valletta",
+      "label": "registered in"
+    },
+    {
+      "source": "Mira Castellane",
+      "target": "Greyfen Supply",
+      "label": "sole director of"
+    },
+    {
+      "source": "Mira Castellane",
+      "target": "Lucian Brandt",
+      "label": "sister-in-law of"
+    },
+    {
+      "source": "Greyfen Supply",
+      "target": "Talmont Advisory",
+      "label": "paid"
+    },
+    {
+      "source": "Talmont Advisory",
+      "target": "Luxembourg",
+      "label": "based in"
+    },
+    {
+      "source": "Rafael Duchene",
+      "target": "Talmont Advisory",
+      "label": "manages"
+    },
+    {
+      "source": "Rafael Duchene",
+      "target": "Lucian Brandt",
+      "label": "partnered on property venture"
+    },
+    {
+      "source": "Hendrik Aalto",
+      "target": "Larkmoor Harbor Restoration Fund",
+      "label": "accountant at; resigned from"
+    },
+    {
+      "source": "Hendrik Aalto",
+      "target": "Port Anselm Ethics Commission",
+      "label": "provided invoices to"
+    },
+    {
+      "source": "Port Anselm Ethics Commission",
+      "target": "Teodora Vass",
+      "label": "accused"
+    },
+    {
+      "source": "Teodora Vass",
+      "target": "Meridale Construction",
+      "label": "accused of undisclosed ties to"
+    },
+    {
+      "source": "Port Anselm Ethics Commission",
+      "target": "Greyfen Supply",
+      "label": "examining payments to"
+    },
+    {
+      "source": "Nadia Ferreol",
+      "target": "Port Anselm Ethics Commission",
+      "label": "director of"
+    },
+    {
+      "source": "Meridale Construction",
+      "target": "Pellar Marine Works",
+      "label": "acquired"
+    },
+    {
+      "source": "Pellar Marine Works",
+      "target": "Rafael Duchene",
+      "label": "previously owned by"
+    },
+    {
+      "source": "Ines Rourke",
+      "target": "East Pier Tenants Association",
+      "label": "leads"
+    },
+    {
+      "source": "Ines Rourke",
+      "target": "Port Anselm Ethics Commission",
+      "label": "met investigators; gave photographs to"
+    },
+    {
+      "source": "Larkmoor Harbor Restoration Fund",
+      "target": "Port Anselm Ethics Commission",
+      "label": "will cooperate with review by"
+    }
+  ]
+}
