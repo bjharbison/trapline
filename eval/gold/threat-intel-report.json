@@ -1,0 +1,252 @@
+{
+  "status": "DRAFT - needs Brian's review",
+  "doc": "examples/threat-intel-report.txt",
+  "notes": [
+    "Fictional document from examples/. Stand-in set until the federal documents have their text added.",
+    "Handles 'fenwright' and 'Ilsabet' are typed person (personas) per the guidelines.",
+    "'EU' appears only inside a quoted forum post; annotated as a place because the text names it.",
+    "No relation between COPPER LANTERN and Varnholt Exchange: the text says payments were routed there but doesn't say by whom.",
+    "No relation between Northfold Security and Brightmoor Hosting: the takedown requests have no stated sender.",
+    "COPPER LANTERN -- Kestrel Port Services is inferred: 'The same infrastructure was later used to target Kestrel' plus 'link the two intrusions'.",
+    "COPPER LANTERN -- Tessaly Customs Brokers is one step removed: the phishing email in the campaign impersonated Tessaly."
+  ],
+  "entities": [
+    {
+      "name": "COPPER LANTERN",
+      "type": "other",
+      "aliases": []
+    },
+    {
+      "name": "Northfold Security",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Gdansk",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Rotterdam",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Hamburg",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Halvard Freight",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Tessaly Customs Brokers",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "GLASSWICK",
+      "type": "other",
+      "aliases": []
+    },
+    {
+      "name": "Brightmoor Hosting",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Chisinau",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Kestrel Port Services",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Annika Voorhees",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "Tomasz Wierzba",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "fenwright",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "Ilsabet",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "EU",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Varnholt Exchange",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Tbilisi",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Gregor Selin",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "Saltmere Shipping",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Elbquay Harbour Office",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Piotr Lesniak",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "Trapline",
+      "type": "other",
+      "aliases": []
+    }
+  ],
+  "relations": [
+    {
+      "source": "Northfold Security",
+      "target": "COPPER LANTERN",
+      "label": "tracked"
+    },
+    {
+      "source": "COPPER LANTERN",
+      "target": "Halvard Freight",
+      "label": "targeted"
+    },
+    {
+      "source": "Halvard Freight",
+      "target": "Gdansk",
+      "label": "headquartered in"
+    },
+    {
+      "source": "COPPER LANTERN",
+      "target": "Tessaly Customs Brokers",
+      "label": "impersonated"
+    },
+    {
+      "source": "Tessaly Customs Brokers",
+      "target": "Halvard Freight",
+      "label": "business partner of"
+    },
+    {
+      "source": "GLASSWICK",
+      "target": "Halvard Freight",
+      "label": "installed at"
+    },
+    {
+      "source": "GLASSWICK",
+      "target": "Brightmoor Hosting",
+      "label": "contacted infrastructure registered through"
+    },
+    {
+      "source": "Brightmoor Hosting",
+      "target": "Chisinau",
+      "label": "based in"
+    },
+    {
+      "source": "COPPER LANTERN",
+      "target": "Kestrel Port Services",
+      "label": "targeted"
+    },
+    {
+      "source": "Kestrel Port Services",
+      "target": "Rotterdam",
+      "label": "located in"
+    },
+    {
+      "source": "Annika Voorhees",
+      "target": "Kestrel Port Services",
+      "label": "incident lead at"
+    },
+    {
+      "source": "Annika Voorhees",
+      "target": "Northfold Security",
+      "label": "partnered with"
+    },
+    {
+      "source": "Tomasz Wierzba",
+      "target": "Northfold Security",
+      "label": "analyst at"
+    },
+    {
+      "source": "Tomasz Wierzba",
+      "target": "fenwright",
+      "label": "identified"
+    },
+    {
+      "source": "fenwright",
+      "target": "GLASSWICK",
+      "label": "handle found in samples of"
+    },
+    {
+      "source": "fenwright",
+      "target": "Ilsabet",
+      "label": "partner"
+    },
+    {
+      "source": "Varnholt Exchange",
+      "target": "Tbilisi",
+      "label": "registered in"
+    },
+    {
+      "source": "Gregor Selin",
+      "target": "Varnholt Exchange",
+      "label": "runs"
+    },
+    {
+      "source": "COPPER LANTERN",
+      "target": "Saltmere Shipping",
+      "label": "targeted"
+    },
+    {
+      "source": "Saltmere Shipping",
+      "target": "Hamburg",
+      "label": "located in"
+    },
+    {
+      "source": "COPPER LANTERN",
+      "target": "Elbquay Harbour Office",
+      "label": "impersonated"
+    },
+    {
+      "source": "Northfold Security",
+      "target": "Saltmere Shipping",
+      "label": "notified"
+    },
+    {
+      "source": "Piotr Lesniak",
+      "target": "Halvard Freight",
+      "label": "security director of"
+    },
+    {
+      "source": "Northfold Security",
+      "target": "GLASSWICK",
+      "label": "tracks"
+    }
+  ]
+}

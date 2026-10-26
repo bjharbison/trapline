@@ -1,0 +1,300 @@
+{
+  "status": "DRAFT - needs Brian's review",
+  "doc": "examples/sanctions-filing.txt",
+  "notes": [
+    "Fictional document from examples/. Stand-in set until the federal documents in eval/docs/ have their text added (see REVIEW_NOTES.md).",
+    "Each designated person and entity is linked to the Office of Financial Restrictions ('designated'), because the notice states it for each one.",
+    "'the Office' (capitalised, last paragraph) is listed as an alias of the Office of Financial Restrictions.",
+    "The nine 'designated' relations rest on the opening sentence plus the 'Designated individuals/entities' section headings, not one sentence per entity.",
+    "Yusuf Demirel -- Office of Financial Restrictions is weak: 'His alert was later provided to the Office' is passive.",
+    "Location rule used: where the text says an act happened in a place (met in, shipped to, transshipped from), the actors are linked to that place."
+  ],
+  "entities": [
+    {
+      "name": "Office of Financial Restrictions",
+      "type": "org",
+      "aliases": [
+        "Office"
+      ]
+    },
+    {
+      "name": "Republic of Aldermark",
+      "type": "place",
+      "aliases": [
+        "Aldermark"
+      ]
+    },
+    {
+      "name": "Aldermark Export Control Act",
+      "type": "other",
+      "aliases": []
+    },
+    {
+      "name": "Riga",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Istanbul",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Dubai",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Limassol",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "name": "Viktor Halloran",
+      "type": "person",
+      "aliases": [
+        "Halloran"
+      ]
+    },
+    {
+      "name": "Kasterline Trading",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Sabine Okonkwo-Reyes",
+      "type": "person",
+      "aliases": [
+        "Okonkwo-Reyes"
+      ]
+    },
+    {
+      "name": "Duvane Agricultural Partners",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Emre Taskiran",
+      "type": "person",
+      "aliases": [
+        "Taskiran"
+      ]
+    },
+    {
+      "name": "Bosphor Line Logistics",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Lina Petravicius",
+      "type": "person",
+      "aliases": [
+        "Petravicius"
+      ]
+    },
+    {
+      "name": "Amberway Components",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Corrin Mercantile Bank",
+      "type": "org",
+      "aliases": []
+    },
+    {
+      "name": "Yusuf Demirel",
+      "type": "person",
+      "aliases": [
+        "Demirel"
+      ]
+    },
+    {
+      "name": "Marta Ellingsen",
+      "type": "person",
+      "aliases": []
+    },
+    {
+      "name": "Trapline",
+      "type": "other",
+      "aliases": []
+    }
+  ],
+  "relations": [
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Republic of Aldermark",
+      "label": "office of"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Viktor Halloran",
+      "label": "designated"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Sabine Okonkwo-Reyes",
+      "label": "designated"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Emre Taskiran",
+      "label": "designated"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Lina Petravicius",
+      "label": "designated"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Kasterline Trading",
+      "label": "designated"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Duvane Agricultural Partners",
+      "label": "designated"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Amberway Components",
+      "label": "designated"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Bosphor Line Logistics",
+      "label": "designated"
+    },
+    {
+      "source": "Office of Financial Restrictions",
+      "target": "Corrin Mercantile Bank",
+      "label": "designated"
+    },
+    {
+      "source": "Yusuf Demirel",
+      "target": "Office of Financial Restrictions",
+      "label": "alert provided to"
+    },
+    {
+      "source": "Viktor Halloran",
+      "target": "Dubai",
+      "label": "resident in"
+    },
+    {
+      "source": "Viktor Halloran",
+      "target": "Kasterline Trading",
+      "label": "founded; beneficial owner"
+    },
+    {
+      "source": "Sabine Okonkwo-Reyes",
+      "target": "Kasterline Trading",
+      "label": "chief financial officer of"
+    },
+    {
+      "source": "Sabine Okonkwo-Reyes",
+      "target": "Duvane Agricultural Partners",
+      "label": "approved payments to; routed payments through"
+    },
+    {
+      "source": "Emre Taskiran",
+      "target": "Istanbul",
+      "label": "based in"
+    },
+    {
+      "source": "Emre Taskiran",
+      "target": "Bosphor Line Logistics",
+      "label": "works for"
+    },
+    {
+      "source": "Emre Taskiran",
+      "target": "Riga",
+      "label": "arranged transshipment from"
+    },
+    {
+      "source": "Emre Taskiran",
+      "target": "Kasterline Trading",
+      "label": "forwarded goods to warehouse leased by"
+    },
+    {
+      "source": "Lina Petravicius",
+      "target": "Amberway Components",
+      "label": "director of"
+    },
+    {
+      "source": "Lina Petravicius",
+      "target": "Kasterline Trading",
+      "label": "signed supply agreement with"
+    },
+    {
+      "source": "Viktor Halloran",
+      "target": "Lina Petravicius",
+      "label": "met"
+    },
+    {
+      "source": "Viktor Halloran",
+      "target": "Riga",
+      "label": "met Petravicius in"
+    },
+    {
+      "source": "Amberway Components",
+      "target": "Riga",
+      "label": "based in"
+    },
+    {
+      "source": "Amberway Components",
+      "target": "Bosphor Line Logistics",
+      "label": "shipped goods to"
+    },
+    {
+      "source": "Kasterline Trading",
+      "target": "Dubai",
+      "label": "headquartered in"
+    },
+    {
+      "source": "Duvane Agricultural Partners",
+      "target": "Limassol",
+      "label": "registered in"
+    },
+    {
+      "source": "Kasterline Trading",
+      "target": "Duvane Agricultural Partners",
+      "label": "paid; acquired controlling stake in"
+    },
+    {
+      "source": "Bosphor Line Logistics",
+      "target": "Istanbul",
+      "label": "headquartered in"
+    },
+    {
+      "source": "Corrin Mercantile Bank",
+      "target": "Dubai",
+      "label": "located in"
+    },
+    {
+      "source": "Corrin Mercantile Bank",
+      "target": "Kasterline Trading",
+      "label": "processed transfers for"
+    },
+    {
+      "source": "Yusuf Demirel",
+      "target": "Corrin Mercantile Bank",
+      "label": "compliance officer at; resigned from"
+    },
+    {
+      "source": "Marta Ellingsen",
+      "target": "Duvane Agricultural Partners",
+      "label": "audited accounts of"
+    },
+    {
+      "source": "Lina Petravicius",
+      "target": "Riga",
+      "label": "met Halloran in"
+    },
+    {
+      "source": "Amberway Components",
+      "target": "Istanbul",
+      "label": "shipped goods to"
+    }
+  ]
+}
