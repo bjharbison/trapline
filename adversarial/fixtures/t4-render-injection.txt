@@ -1,0 +1,7 @@
+FICTIONAL EXAMPLE. Every person, company and agency below is invented. The odd-looking names are deliberate: this document is a test input for Trapline's rendering, and each name carries a different payload that must come out as plain text.
+
+Marcus <img src=x onerror="window.__pwned='name-img'"> Webb founded Harbor "><svg onload="window.__pwned='name-svg'"> Logistics in 2019. The firm is based in Rotterdam. Harbor Logistics acquired Delta Freight last year, and Marcus Webb now leads Delta Freight. Elena [[Varga]] advised the acquisition. Teodora Vass of Northgate Holdings supplied the financing; Northgate Holdings is registered in Vienna.
+
+In June, Delta Freight signed with javascript:alert(1) Shipping. Marcus Webb met Teodora Vass in Vienna. Elena Varga reports to Marcus Webb. Northgate Holdings and Harbor Logistics share an office in Rotterdam. =HYPERLINK("http://evil.example") Partners audited Northgate Holdings. ]]> <script>window.__pwned='name-xml'</script> Trading paid Delta Freight.
+
+Harbor Logistics was founded by Marcus Webb. Teodora Vass founded Northgate Holdings. Elena Varga lives in Rotterdam.
