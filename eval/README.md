@@ -10,7 +10,7 @@ This folder measures how well Trapline's extraction matches hand-annotated groun
 | `docs/` | Source documents. Each has a header (title, agency, date, source URL, licence), then a `---` line, then the body. |
 | `gold/<doc>.json` | Ground truth for one document. `doc` points at its text, which can live anywhere in the repo. |
 | `score.py` | Runs the page on each gold file's document and scores the result. |
-| `results/` | Saved reports. |
+| `results/` | Saved reports. `offline-2026-10-26.md` ends with a hand-written spot check, which `--out` to the same path would overwrite. |
 | `REVIEW_NOTES.md` | Open questions about the draft gold, and the missing document text. |
 
 **Current state.** The five U.S. government press releases in `docs/` are headers only. Their text still has to be pasted in (see `REVIEW_NOTES.md`). Until then, gold exists only for the three fictional samples in `examples/`.
@@ -46,7 +46,7 @@ The key is read from the environment variable you name. It never goes on the com
 1. Read `REVIEW_NOTES.md` and settle each open question.
 2. For each gold file, read the document and the JSON side by side. Fix entities, types, aliases and relations to follow `GUIDELINES.md`. Every alias must appear in the text. An alias that fits two entities is an error the scorer refuses.
 3. When a file is right, change its status to `"status": "reviewed"`.
-4. Re-run: `python3 eval/score.py --out eval/results/offline-$(date +%F).md`. `bash tests/run_all.sh` also validates every gold file.
+4. Re-run: `python3 eval/score.py --out eval/results/offline-$(date +%F).md`. `bash tests/run_all.sh` also validates every gold file: status, types, that every name and alias appears in the document, and no shared aliases or repeated pairs.
 5. Reports keep the DRAFT banner until the banner logic is changed. When every gold file is `reviewed`, edit `BANNER` in `score.py`, or make it depend on the statuses. That's a deliberate step, not an automatic one.
 
 To add a federal document's gold, paste its text into `docs/<name>.txt` under the `---` line. Then write `gold/<name>.json` with `"doc": "eval/docs/<name>.txt"`. The scorer lists documents with no gold or no text under "Not scored".

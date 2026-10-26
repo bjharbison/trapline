@@ -31,9 +31,9 @@ Countries and governments: when a country is named as a place ("traveled to Cypr
 ## Names and aliases
 
 - `name` is the fullest form the text uses ("Viktor Halloran", not "Halloran").
-- `aliases` lists every other form the text uses for the same entity: surnames alone ("Halloran"), acronyms ("FBI", "PDVSA", "OFAC"), short forms ("Ethics Commission"), and forms with or without a leading "the". Only list forms that actually appear in the text.
+- `aliases` lists every other form the text uses for the same entity: surnames alone ("Halloran"), acronyms ("FBI", "PDVSA", "OFAC"), and short forms ("Ethics Commission"). A leading "the" never needs its own alias. Only list forms that actually appear in the text.
 - Case and punctuation differences are the same entity and don't need separate aliases ("U.S." = "US", "Okonkwo-Reyes" = "Okonkwo Reyes"). The scorer normalizes them.
-- An alias must point to exactly one entity in the document. If a surname is shared by two people in the text (a father and son), don't list the bare surname as an alias for either. The scorer refuses a gold file where one alias belongs to two entities.
+- An alias must point to exactly one entity in the document. If a surname is shared by two people in the text (a father and son), don't list the bare surname as an alias for either. The scorer refuses a gold file where one alias belongs to two entities, an entity is listed twice, or a relation pair is listed twice.
 - A false merge is worse than a leftover duplicate. When unsure whether two names are the same entity, keep them separate and note it in `notes`.
 
 ## Relationships
@@ -69,7 +69,7 @@ A relationship is a connection between two annotated entities that the text stat
 
 `score.py` runs Trapline on the document, then compares.
 
-**Normalization.** Both sides are lower-cased, periods are removed, every run of other non-letter, non-digit characters becomes one space, and a leading "the " is dropped. "U.S. Attorney's Office" and "US Attorney s Office" normalize the same. This mirrors the page's own `nameKey()`, plus the article rule.
+**Normalization.** Both sides are lower-cased, periods are removed, every run of other non-letter, non-digit characters becomes one space, and a leading "the " is dropped. "U.S. Attorney's Office" and "US Attorney s Office" normalize the same. This is close to the page's own `nameKey()` (both also apply Unicode NFC), plus the article rule.
 
 **Entities.** An extracted entity matches a gold entity when its normalized name equals the gold entity's normalized name or any normalized alias. There is no fuzzy or substring matching: "Halloran Trading" does not match "Viktor Halloran".
 

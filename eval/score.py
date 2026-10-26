@@ -13,7 +13,7 @@ With --endpoint, each document's text is sent to that URL. Point it at a local
 model unless you mean to send the documents elsewhere. The key is read from the
 named environment variable, never from the command line.
 """
-import argparse, datetime, json, os, pathlib, re, sys
+import argparse, datetime, json, os, pathlib, re, sys, unicodedata
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tests"))
@@ -22,8 +22,8 @@ BANNER = "Scored against DRAFT ground truth — not for publication."
 
 
 def norm(s):
-    """Mirror the page's nameKey(), plus a dropped leading 'the'."""
-    s = s.strip().lower().replace(".", "")
+    """Close to the page's nameKey() (NFC, case, punctuation), plus a dropped leading 'the'."""
+    s = unicodedata.normalize("NFC", s).strip().lower().replace(".", "")
     s = re.sub(r"[^\w]+|_", " ", s).strip()
     return re.sub(r"^the ", "", s)
 
@@ -41,6 +41,8 @@ def load_gold(path):
     g = json.loads(path.read_text(encoding="utf-8"))
     index, names = {}, set()
     for e in g["entities"]:
+        if e["name"] in names:
+            raise ValueError(f"{path.name}: entity '{e['name']}' is listed twice")
         names.add(e["name"])
         for form in [e["name"]] + e.get("aliases", []):
             k = norm(form)
@@ -52,7 +54,10 @@ def load_gold(path):
         for end in (r["source"], r["target"]):
             if end not in names:
                 raise ValueError(f"{path.name}: relation endpoint '{end}' is not a gold entity name")
-        pairs[frozenset((r["source"], r["target"]))] = r.get("label", "")
+        key = frozenset((r["source"], r["target"]))
+        if len(key) < 2 or key in pairs:
+            raise ValueError(f"{path.name}: relation {r['source']} — {r['target']} is a self-pair or listed twice (join labels with ';')")
+        pairs[key] = r.get("label", "")
     return g, index, pairs
 
 
@@ -95,7 +100,7 @@ def score(gold, index, pairs, got):
     typed = [l for l in got["links"] if l["label"] != "co-occurs"]
     return {"ent": ent, "matched": matched, "dups": dups, "fps": fps, "misses": misses,
             "type_ok": type_ok, "rel_all": rel(got["links"]), "rel_typed": rel(typed),
-            "n_nodes": len(got["nodes"]), "n_links": len(got["links"]), "n_typed": len(typed)}
+            "n_gold_rel": len(pairs), "n_nodes": len(got["nodes"]), "n_links": len(got["links"]), "n_typed": len(typed)}
 
 
 EXTRACT_JS = """() => ({
@@ -113,7 +118,6 @@ def run_page(pg, text, args):
     if args.endpoint:
         pg.click("#pill-llm")
         pg.fill("#llm-url", args.endpoint)
-        pg.dispatch_event("#llm-url", "input")
         pg.fill("#llm-model", args.model)
         pg.fill("#llm-key", os.environ.get(args.key_env, "") if args.key_env else "")
     if args.max_entities:
@@ -121,8 +125,8 @@ def run_page(pg, text, args):
     pg.fill("#text-input", text)
     pg.click("#btn-analyse")
     pg.wait_for_function("document.getElementById('btn-analyse').disabled === false", timeout=args.timeout * 1000)
-    if not (pg.evaluate("state.analysis") or {}).get("nodes"):
-        raise RuntimeError("analysis produced no graph (see the page's error toast)")
+    if not pg.evaluate("!!(state.analysis && state.analysis.nodes)"):
+        raise RuntimeError("no graph: " + (pg.text_content("#toast") or "no message").strip())
     return pg.evaluate(EXTRACT_JS)
 
 
@@ -131,8 +135,9 @@ def pct(x): return f"{x * 100:.1f}%"
 
 def md(s):
     """Extracted strings are untrusted: neutralize HTML and Markdown before they go in the report."""
-    s = str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", " ")
-    return re.sub(r"([\\`*_\[\]|#!])", r"\\\1", s)
+    s = str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    s = re.sub(r"[\r\n\u2028\u2029]+", " ", s)
+    return re.sub(r"([\\`*_\[\]|#!~])", r"\\\1", s)
 
 
 def report(results, skipped, args, engine):
@@ -155,10 +160,10 @@ def report(results, skipped, args, engine):
         (ap, ar, af), ahit, adup, _, _ = r["rel_all"]
         (tp, tr, tf), thit, tdup, _, _ = r["rel_typed"]
         rows.append(f"| {name} | {r['n_nodes']} / {len(gold['entities'])} | {pct(ep)} | {pct(er)} | {pct(ef)} | "
-                    f"{r['n_links']} / {len(gold['relations'])} | {pct(ap)} | {pct(ar)} | {pct(af)} | {pct(tf)} |")
+                    f"{r['n_links']} / {r['n_gold_rel']} | {pct(ap)} | {pct(ar)} | {pct(af)} | {pct(tf)} |")
         tot["nodes"] += r["n_nodes"]; tot["gold"] += len(gold["entities"])
         tot["ematch"] += len(r["matched"]); tot["edup"] += len(r["dups"]); tot["typeok"] += r["type_ok"]
-        tot["ruse_all"] += r["n_links"]; tot["rgold"] += len(gold["relations"])
+        tot["ruse_all"] += r["n_links"]; tot["rgold"] += r["n_gold_rel"]
         tot["rhit_all"] += len(ahit); tot["rdup_all"] += len(adup)
         tot["ruse_t"] += r["n_typed"]; tot["rhit_t"] += len(thit); tot["rdup_t"] += len(tdup)
     ep, er, ef = prf(tot["ematch"] + tot["edup"], tot["nodes"], tot["ematch"], tot["gold"])
@@ -228,7 +233,10 @@ def main(argv=None, route=None):
         ctx, pg, errors = open_page(b, route)
         for name, gold, index, pairs, text in golds:
             print(f"== {name}", file=sys.stderr)
-            got = run_page(pg, text, args)
+            try:
+                got = run_page(pg, text, args)
+            except Exception as e:  # one failed document (model error, timeout) shouldn't lose the rest
+                skipped.append(f"{name}: run failed: {md(e)}"); continue
             r = score(gold, index, pairs, got)
             r["_nodes"] = got["nodes"]
             results.append((name, gold, r))

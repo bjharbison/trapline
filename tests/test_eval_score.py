@@ -47,6 +47,10 @@ bad = dict(gold, entities=gold["entities"] + [{"name": "Vass Holdings", "type": 
 p.write_text(json.dumps(bad))
 try: S.load_gold(p); check(False, "alias shared by two entities is refused")
 except ValueError: check(True, "alias shared by two entities is refused")
+dup = dict(gold, relations=gold["relations"] * 2)
+p.write_text(json.dumps(dup))
+try: S.load_gold(p); check(False, "relation pair listed twice is refused")
+except ValueError: check(True, "relation pair listed twice is refused")
 p.unlink()
 
 print("gold files")
@@ -56,6 +60,10 @@ for f in sorted((ROOT / "eval/gold").glob("*.json")):
         ok = gg["status"] in ("DRAFT - needs Brian's review", "reviewed") and (ROOT / gg["doc"]).exists()
         types = all(e["type"] in ("person", "org", "place", "event", "other") for e in gg["entities"])
         check(ok and types, f"{f.name}: valid status, doc, types")
+        text = S.norm(S.body(ROOT / gg["doc"]))
+        absent = [a for e in gg["entities"] for a in [e["name"]] + e["aliases"]
+                  if f" {S.norm(a)} " not in f" {text} "]
+        check(not absent, f"{f.name}: every name and alias appears in the text {absent}")
     except ValueError as e:
         check(False, f"{f.name}: {e}")
 
@@ -96,6 +104,14 @@ if res:
     check(len(rel[1]) == 1 and len(rel[2]) == 1 and len(rel[3]) == 1, "LLM links scored")
     rep = S.report(res, [], type("A", (), {"max_entities": None, "endpoint": URL})(), "LLM")
     check(S.BANNER in rep and "<b>" not in rep, "report has the DRAFT banner and escapes names")
+    check("sk-eval-SECRET" not in rep, "key not in the report")
+
+print("LLM path, endpoint error")
+def failing(ctx):
+    ctx.route(URL, lambda rt: rt.fulfill(status=500, headers={"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*"},
+                                         body=json.dumps({"error": {"message": "boom"}})))
+res = S.main(["--endpoint", URL, "--model", "mock-model", "--only", "sanctions-filing", "--quiet"], route=failing)
+check(res == [], "a failed document is skipped, not fatal")
 
 print(f"{len(failures())} failure(s)")
 sys.exit(1 if failures() else 0)
