@@ -25,6 +25,7 @@ bash tests/run_all.sh
 | `test_mobile.py` | Phone viewport: panel stacks above a full-width graph, Export is reachable, legend hidden; the ⋯ card menu pins, edits and deletes (with confirm) without the detail panel. |
 | `test_offline_build.py` | `build/offline.py` from a vendor dir with stub pdf.js files containing `</script>`; the result has no network src/href, runs extraction with every non-file request aborted, and serves the pdf.js worker from a `blob:` URL. (Real pdf.js is verified on a machine that can reach the CDN.) |
 | `test_editing.py` | Rename, retype and delete from the detail panel: stable ids, name-collision refusal (no silent merge), recomputed metrics/flags/dupes, pins kept, and a hostile name rendered as text in every panel. |
+| `test_adv_t4_render.py` | Adversarial T4 (`adversarial/README.md`): nine injection payloads in every model- and text-controlled field, through both engines and the editor, into every panel, the SVG and all four exports. Asserts no execution, no egress, inert text everywhere, and a frontmatter that still parses to exactly Trapline's keys. |
 
 **Changing the baseline.** If an extraction change is intended, run `python3 tests/test_offline_smoke.py --update`. Commit the new baseline, and paste the +/- diff from the run before into the PR so the change can be reviewed.
 

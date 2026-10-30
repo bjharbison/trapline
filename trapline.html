@@ -919,6 +919,10 @@ function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function jsAttr(v) { return esc(JSON.stringify(String(v??''))); }
 // CSV cell: double embedded quotes (RFC 4180) and neutralize spreadsheet formula injection (=,+,-,@).
 function csvCell(v) { v=String(v??''); if(/^[=+\-@\t\r]/.test(v)) v="'"+v; return '"'+v.replace(/"/g,'""')+'"'; }
+// YAML double-quoted scalar for Markdown frontmatter. A model-authored title is untrusted: a newline in it
+// would start a new frontmatter key (tags:, source:) in Obsidian. One line, backslash and quote escaped.
+function yamlStr(v) { return '"'+String(v??'').replace(/[\r\n]+/g,' ').replace(/\\/g,'\\\\').replace(/"/g,'\\"')+'"'; }
+function oneLine(v) { return String(v??'').replace(/[\r\n]+/g,' ').trim(); }
 function dl(content, filename, mime='text/plain') {
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([content],{type:mime}));
@@ -1967,7 +1971,7 @@ function doExport(type) {
     toast('Downloading CSV files…');
   } else if(type==='md'){
     const nodeNames=Object.fromEntries(a.nodes.map(n=>[n.id,n.name]));
-    let md=`---\ntitle: "${a.title.replace(/"/g,"'")}"\ndate: ${date}\nsource: "${a.source.replace(/"/g,"'")}"\nnodes: ${a.nodes.length}\nedges: ${a.links.length}\n---\n\n# ${a.title}\n\n${a.summary}\n\n## Top Nodes\n\n| Entity | Type | Mentions | Betweenness | PageRank |\n|--------|------|----------|-------------|----------|\n`;
+    let md=`---\ntitle: ${yamlStr(a.title)}\ndate: ${date}\nsource: ${yamlStr(a.source)}\nnodes: ${a.nodes.length}\nedges: ${a.links.length}\n---\n\n# ${oneLine(a.title)}\n\n${a.summary}\n\n## Top Nodes\n\n| Entity | Type | Mentions | Betweenness | PageRank |\n|--------|------|----------|-------------|----------|\n`;
     [...a.nodes].sort((x,y)=>(metrics[y.id]?.betweenness||0)-(metrics[x.id]?.betweenness||0)).slice(0,15).forEach(n=>{const m=metrics[n.id]||{};md+=`| [[${n.name}]] | ${n.type} | ${n.mentions} | ${fmt(m.betweenness)} | ${fmt(m.pagerank)} |\n`;});
     md+=`\n## Relationships\n\n\`\`\`\n`;
     a.links.forEach(l=>{const s=typeof l.source==='object'?l.source.id:l.source,t=typeof l.target==='object'?l.target.id:l.target;md+=`[[${nodeNames[s]||s}]] --[${l.relationship}]--> [[${nodeNames[t]||t}]]\n`;});
