@@ -14,11 +14,21 @@ from playwright.sync_api import sync_playwright
 from harness import PAGE, ROOT, check, failures, route_vendor
 
 FIXTURE = (ROOT / "tests" / "fixtures" / "offline_sample.txt").read_text(encoding="utf-8")
+# The browser-only page intentionally references these assets, but the harness
+# serves scripts from disk and aborts fonts. An unexpected URL must be reviewed,
+# even if its filename matches a locally routed vendor script.
+APPROVED_ASSET_URLS = {
+    "https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js",
+    "https://cdn.jsdelivr.net/npm/compromise@14.14.4/builds/compromise.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+    "https://fonts.googleapis.com/css2?family=Oxanium:wght@400;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap",
+}
 
 with sync_playwright() as p:
     browser = p.chromium.launch()
     ctx = browser.new_context()
     unexpected = []
+    observed_requests = []
     errors = []
 
     def deny_unexpected(route):
@@ -36,6 +46,7 @@ with sync_playwright() as p:
 
     page = ctx.new_page()
     page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: observed_requests.append(request.url))
     page.goto(PAGE)
     page.wait_for_function("typeof d3 !== 'undefined' && typeof nlp !== 'undefined'", timeout=20000)
 
@@ -48,6 +59,11 @@ with sync_playwright() as p:
     )
     check(page.evaluate("state.analysis.links.length") > 0, "synthetic text yields relationships")
     page.wait_for_timeout(500)
+    unapproved_urls = sorted({
+        url for url in observed_requests
+        if not url.startswith(("file:", "data:", "blob:")) and url not in APPROVED_ASSET_URLS
+    })
+    check(not unapproved_urls, f"only reviewed asset URLs are requested: {unapproved_urls[:5]}")
     check(not unexpected, f"no unexpected network requests during offline analysis: {unexpected[:5]}")
     check(not errors, f"no uncaught browser errors: {errors}")
     ctx.close()
