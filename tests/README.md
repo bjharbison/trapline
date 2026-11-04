@@ -27,6 +27,12 @@ bash tests/run_all.sh
 | `test_editing.py` | Rename, retype and delete from the detail panel: stable ids, name-collision refusal (no silent merge), recomputed metrics/flags/dupes, pins kept, and a hostile name rendered as text in every panel. |
 | `test_adv_t4_render.py` | Adversarial T4 (`adversarial/README.md`): nine injection payloads in every model- and text-controlled field, through both engines and the editor, into every panel, the SVG and all four exports. Asserts no execution, no egress, inert text everywhere, and a frontmatter that still parses to exactly Trapline's keys. |
 
+## V2 compatibility CI
+
+Pull requests targeting `develop/v2-roadmap` run the browser regression suite in GitHub Actions using Python 3.12 and Chromium. See [the V2 baseline](../docs/V2_BASELINE.md) for pinned reference commits, reproduction steps, CI scope and remaining gaps. The new `test_offline_egress.py` blocks and records unexpected network requests during default offline analysis; unlike `test_egress.py`, which checks the LLM endpoint warning, this is a direct browser network guard.
+
+Passing this suite is a V1 regression check only; V2 backend persistence, migrations and backup/restore require their own tests before release.
+
 **Changing the baseline.** If an extraction change is intended, run `python3 tests/test_offline_smoke.py --update`. Commit the new baseline, and paste the +/- diff from the run before into the PR so the change can be reviewed.
 
 **Demo GIF.** `docs/record_demo.py` re-records `docs/demo.gif` with the same harness and ffmpeg. Install the Oxanium and JetBrains Mono fonts locally first, because the harness blocks Google Fonts.
