@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=75,<82"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trapline-api"
+version = "2.0.0.dev0"
+description = "Local-first backend scaffold for Trapline V2"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "httpx>=0.27,<1"]
+
+[tool.setuptools.packages.find]
+include = ["trapline_api*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
