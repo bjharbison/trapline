@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel
 
 from . import __version__
@@ -20,6 +21,12 @@ def create_app() -> FastAPI:
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+    )
+    # Block forged Host headers (including DNS-rebinding-style hostnames).
+    # This is defense-in-depth, not authentication or CSRF protection.
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["127.0.0.1", "localhost", "[::1]"],
     )
     # A separate local UI may use these explicit origins. No wildcard CORS.
     app.add_middleware(
