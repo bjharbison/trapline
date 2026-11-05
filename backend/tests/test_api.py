@@ -47,3 +47,28 @@ def test_loopback_defaults_and_validation() -> None:
     assert Settings(host="::1").host == "::1"
     with pytest.raises(ValueError):
         Settings(port=0)
+
+
+@pytest.mark.parametrize("host", ["attacker.example", "localhost.attacker.example", "127.0.0.1.attacker.example", "example.com"])
+def test_reject_untrusted_host_header(host: str) -> None:
+    with TestClient(create_app()) as client:
+        response = client.get("/api/v1/health", headers={"Host": host})
+        assert response.status_code == 400
+        assert response.text == "Invalid host header"
+
+
+@pytest.mark.parametrize("host", ["localhost", "localhost:8765", "127.0.0.1", "127.0.0.1:8765", "[::1]", "[::1]:8765"])
+def test_accept_explicit_loopback_host_header(host: str) -> None:
+    with TestClient(create_app()) as client:
+        response = client.get("/api/v1/health", headers={"Host": host})
+        assert response.status_code == 200
+
+
+def test_cors_preflight_rejects_untrusted_host_even_with_allowed_origin() -> None:
+    with TestClient(create_app()) as client:
+        response = client.options("/api/v1/health", headers={
+            "Host": "attacker.example",
+            "Origin": "http://localhost:8765",
+            "Access-Control-Request-Method": "GET",
+        })
+        assert response.status_code == 400
