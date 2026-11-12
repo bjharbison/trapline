@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import __version__
+from .host_gate import LocalHostGate
 
 
 class HealthResponse(BaseModel):
@@ -32,6 +33,9 @@ def create_app() -> FastAPI:
         allow_methods=["GET"],
         allow_headers=["Accept", "Content-Type"],
     )
+
+    # Reject hostile Host headers before CORS preflight or route handlers.
+    app.add_middleware(LocalHostGate)
 
     @app.get("/api/v1/health", response_model=HealthResponse)
     def health() -> HealthResponse:

@@ -8,7 +8,7 @@ from trapline_api.config import Settings
 
 
 def test_health_contract() -> None:
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(), base_url="http://localhost:8765") as client:
         response = client.get("/api/v1/health")
         assert response.status_code == 200
         assert response.json() == {
@@ -17,13 +17,13 @@ def test_health_contract() -> None:
 
 
 def test_no_database_or_provider_routes_yet() -> None:
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(), base_url="http://localhost:8765") as client:
         assert client.get("/api/v1/investigations").status_code == 404
         assert client.post("/api/v1/documents").status_code == 404
 
 
 def test_cors_only_approved_local_origins() -> None:
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(), base_url="http://localhost:8765") as client:
         approved = client.options(
             "/api/v1/health",
             headers={"Origin": "http://localhost:8765", "Access-Control-Request-Method": "GET"},
