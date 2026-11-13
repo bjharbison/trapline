@@ -39,7 +39,11 @@ def valid_local_authority(authority: str) -> bool:
     if not suffix.startswith(":"):
         return False
     port = suffix[1:]
-    # Bound length before int(): Python raises ValueError for very long digit strings.\n    # Five digits suffice for TCP ports; non-ASCII numerals are never accepted.\n    if not 1 <= len(port) <= 5 or not port.isascii() or not port.isdecimal():\n        return False\n    return 1 <= int(port) <= 65535
+    # Bound length before int(): Python raises ValueError for very long digit strings.
+    # Five digits suffice for TCP ports; non-ASCII numerals are never accepted.
+    if not 1 <= len(port) <= 5 or not port.isascii() or not port.isdecimal():
+        return False
+    return 1 <= int(port) <= 65535
 
 
 class LocalHostGate:
