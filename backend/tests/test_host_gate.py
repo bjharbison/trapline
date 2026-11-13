@@ -77,3 +77,18 @@ def test_missing_and_duplicate_host_headers():
 
     assert asyncio.run(call([])) == 400
     assert asyncio.run(call([(b"host", b"localhost"), (b"host", b"evil.example")])) == 400
+
+
+def test_oversized_numeric_port_is_rejected_without_exception():
+    # A 5,000-digit decimal string triggers Python integer-conversion limits
+    # if parsed without a length guard. This must fail closed instead.
+    for host in ("localhost", "127.0.0.1", "[::1]"):
+        assert valid_local_authority(f"{host}:{'9' * 5000}") is False
+    assert valid_local_authority("localhost:000080") is False
+
+
+def test_oversized_port_returns_http_400():
+    with TestClient(create_app(), base_url="http://localhost:8765") as client:
+        response = client.get("/api/v1/health", headers={"host": "localhost:" + "9" * 5000})
+        assert response.status_code == 400
+        assert "access-control-allow-origin" not in response.headers
