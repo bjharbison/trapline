@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import __version__
+from .config import Settings
 from .host_gate import LocalHostGate
 
 
@@ -14,7 +15,9 @@ class HealthResponse(BaseModel):
     version: str
 
 
-def create_app() -> FastAPI:
+def create_app(settings: Settings | None = None) -> FastAPI:
+    # Keep trusted browser origins aligned with the validated runtime port.
+    configured_port = (settings if settings is not None else Settings.from_env()).port
     app = FastAPI(
         title="Trapline local API",
         version=__version__,
@@ -26,8 +29,8 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "http://127.0.0.1:8765",
-            "http://localhost:8765",
+            f"http://127.0.0.1:{configured_port}",
+            f"http://localhost:{configured_port}",
         ],
         allow_credentials=False,
         allow_methods=["GET"],
