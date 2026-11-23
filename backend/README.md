@@ -15,6 +15,6 @@ python -m trapline_api
 
 Run tests: `python -m pytest -q` from `backend/`.
 
-The server binds to `127.0.0.1:8765` by default; `TRAPLINE_HOST` accepts only numeric loopback addresses and `TRAPLINE_PORT` can override the port. Remote access, proxying, authentication and TLS require separate design/security review. CORS is restricted to the two default same-port loopback origins and does not enable credentialed cross-origin requests. Changing the port does not dynamically change CORS; use the default until UI integration defines explicit trusted origins.
+The server binds to `127.0.0.1:8765` by default; `TRAPLINE_HOST` accepts only numeric loopback addresses and `TRAPLINE_PORT` can override the port. Remote access, proxying, authentication and TLS require separate design/security review. CORS permits only `http://localhost:<TRAPLINE_PORT>` and `http://127.0.0.1:<TRAPLINE_PORT>` (default port 8765), without credentials; the allowlist follows the validated port at startup. Other origins and non-GET preflights remain disallowed. CORS is **not authentication** or protection against non-browser clients. The Host gate is a separate DNS-rebinding safeguard, and no mutation routes should be exposed without a CSRF/authentication review.
 
 No uploads, database, cloud inference, analytics collection, or external HTTP requests are implemented. Never expose this unauthenticated API on a public interface. Future storage and document handling must follow `docs/ROADMAP_V2.md` and `docs/AGENT_DELIVERY_PLAYBOOK.md`.
